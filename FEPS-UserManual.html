@@ -1,0 +1,1875 @@
+<h1 id="feps-finite-element-program-for-general-structure">FEPS — Finite
+Element Program for General Structure</h1>
+<h2 id="사용자-설명서-user-manual">사용자 설명서 (User Manual)</h2>
+<blockquote>
+<p><strong>버전</strong>: v0.1 (Web Edition) <strong>최종 수정</strong>:
+2026-03-03 (재료·단면 편집, 자동 스케일 잠금, 수동 스케일 입력 업데이트)
+<strong>플랫폼</strong>: 최신 웹 브라우저 (Chrome · Firefox · Safari ·
+Edge) <strong>개발자</strong>: 권민호 (경상국립대학교 토목공학과) —
+kwonm@gnu.ac.kr</p>
+</blockquote>
+<hr />
+<h2 id="목차">목차</h2>
+<ol type="1">
+<li><a href="#1-프로그램-개요">프로그램 개요</a></li>
+<li><a href="#2-주요-특징-및-지원-요소">주요 특징 및 지원 요소</a></li>
+<li><a href="#3-화면-구성">화면 구성</a></li>
+<li><a href="#4-입력-파일-형식-inp">입력 파일 형식 (.inp)</a></li>
+<li><a href="#5-사전처리-pre-process">사전처리 (Pre-Process)</a></li>
+<li><a href="#6-해석-실행">해석 실행</a></li>
+<li><a href="#7-후처리-post-process">후처리 (Post-Process)</a></li>
+<li><a href="#8-결과-출력-및-내보내기">결과 출력 및 내보내기</a></li>
+<li><a href="#9-예제-모델">예제 모델</a></li>
+<li><a href="#10-단위-및-주의사항">단위 및 주의사항</a></li>
+<li><a href="#11-요소-코드-에디터-학생-요소-개발">요소 코드 에디터 (학생
+요소 개발)</a></li>
+<li><a href="#12-디버그-모드--행렬단면력-뷰어">디버그 모드 — 행렬·단면력
+뷰어</a></li>
+<li><a href="#13-fepselementcore-api-레퍼런스">FepsElementCore API
+레퍼런스</a></li>
+</ol>
+<hr />
+<h2 id="프로그램-개요">1. 프로그램 개요</h2>
+<p><strong>FEPS</strong>는 브라우저에서 완전히 동작하는 <strong>2D 평면
+유한요소해석(FEA) + 2D/3D 보/트러스 구조해석</strong> 프로그램입니다.
+별도 설치 없이 <code>index.html</code>을 브라우저에서 열거나 웹 서버에
+배포하여 즉시 사용할 수 있습니다.</p>
+<h3 id="기술-스택">기술 스택</h3>
+<table>
+<thead>
+<tr>
+<th>구성 요소</th>
+<th>기술</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UI / 렌더링</td>
+<td>순수 HTML5 + Canvas 2D API</td>
+</tr>
+<tr>
+<td>해석 엔진</td>
+<td>JavaScript (동기 실행, 메인 스레드)</td>
+</tr>
+<tr>
+<td>의존 라이브러리</td>
+<td>없음 (Vanilla JS)</td>
+</tr>
+<tr>
+<td>입출력 파일</td>
+<td><code>.inp</code> 텍스트 파일</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="주요-특징-및-지원-요소">2. 주요 특징 및 지원 요소</h2>
+<h3 id="지원-요소-유형">2.1 지원 요소 유형</h3>
+<h4 id="d-요소-트러스-보-기본-내장">1D 요소 (트러스 / 보) — 기본
+내장</h4>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 37%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>요소 이름</th>
+<th>종류</th>
+<th>차원</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BAR2</code></td>
+<td>트러스</td>
+<td>2D</td>
+<td>2절점 트러스, 축력만 전달</td>
+</tr>
+<tr>
+<td><code>BAR3D</code></td>
+<td>트러스</td>
+<td>3D</td>
+<td>2절점 3차원 트러스</td>
+</tr>
+<tr>
+<td><code>BEAM2D</code></td>
+<td>보 (프레임)</td>
+<td>2D</td>
+<td>2절점 2D 보 요소 (축력 + 전단 + 휨모멘트), 분포하중 지원</td>
+</tr>
+<tr>
+<td><code>BEAM3D</code></td>
+<td>보 (프레임)</td>
+<td>3D</td>
+<td>2절점 3D 보 요소 (6DOF/절점), 비틀림 포함</td>
+</tr>
+</tbody>
+</table>
+<h4 id="d-고체-요소-solid-기본-내장">2D 고체 요소 (Solid) — 기본
+내장</h4>
+<table>
+<thead>
+<tr>
+<th>요소 이름</th>
+<th>절점 수</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TRIG3</code></td>
+<td>3</td>
+<td>3절점 삼각형 (일차)</td>
+</tr>
+<tr>
+<td><code>QUAD4</code></td>
+<td>4</td>
+<td>4절점 사각형 (일차)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="확장-요소-학생-개발-플러그인-등록">확장 요소 (학생 개발 /
+플러그인 등록)</h4>
+<p>프로그램 시작 시 자동 로드되는 샘플 학생 요소와, 직접 코드 에디터로
+등록할 수 있는 커스텀 요소입니다.</p>
+<table>
+<thead>
+<tr>
+<th>요소 이름</th>
+<th>절점 수</th>
+<th>종류</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>QUAD5</code></td>
+<td>5</td>
+<td>2D 고체</td>
+<td>버블 함수 보강 5절점 사각형</td>
+</tr>
+<tr>
+<td><code>QUAD8</code></td>
+<td>8</td>
+<td>2D 고체</td>
+<td>8절점 세렌디피티 사각형 (이차)</td>
+</tr>
+<tr>
+<td><code>QUAD9</code></td>
+<td>9</td>
+<td>2D 고체</td>
+<td>9절점 라그랑지 사각형 (이차)</td>
+</tr>
+<tr>
+<td><code>TRIG6</code></td>
+<td>6</td>
+<td>2D 고체</td>
+<td>6절점 라그랑지 삼각형 (이차)</td>
+</tr>
+<tr>
+<td><code>BAR2_3N</code></td>
+<td>3</td>
+<td>1D 트러스</td>
+<td>3절점 2D 봉 요소 (이차 축력)</td>
+</tr>
+<tr>
+<td><code>TIMBEAM2D_2N</code></td>
+<td>2</td>
+<td>1D 보</td>
+<td>2절점 티모셴코 보 (전단변형 포함)</td>
+</tr>
+<tr>
+<td><code>TIMBEAM2D_3N</code></td>
+<td>3</td>
+<td>1D 보</td>
+<td>3절점 티모셴코 보 (이차)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="해석-기능">2.2 해석 기능</h3>
+<ul>
+<li><strong>선형 정적 해석</strong> (Static Linear Analysis)</li>
+<li><strong>LU 분해</strong> 직접 해법 (Dense matrix)</li>
+<li><strong>자중(중력) 하중</strong> 자동 계산
+(<code>ρ × A × g</code>)</li>
+<li><strong>분포 하중</strong> (등분포 및 사다리꼴 분포,
+<code>BEAM2D</code>/<code>BEAM3D</code>)</li>
+<li><strong>온도 하중</strong> (열팽창계수 <code>α × ΔT</code>
+적용)</li>
+<li><strong>절점 응력 평활화</strong> (Node Averaging, 2D 고체
+요소)</li>
+</ul>
+<h3 id="사전처리-pre-process">2.3 사전처리 (Pre-Process)</h3>
+<ul>
+<li>캔버스 직접 클릭으로 절점/요소 생성</li>
+<li>그리드 스냅 (간격·수 조정 가능)</li>
+<li>폴리곤 영역 자동 메시 생성 (Earcut 삼각화 → 사각형 변환)</li>
+<li>구멍(Hole) 포함 메시 생성 지원</li>
+<li>재료·단면 특성 정의 및 요소별 할당</li>
+<li>경계 조건(BC) 및 절점 하중 대화형 입력</li>
+<li><code>.inp</code> 파일 불러오기 / 저장</li>
+</ul>
+<h3 id="후처리-post-process">2.4 후처리 (Post-Process)</h3>
+<ul>
+<li><strong>변형 형상</strong> 표시 (스케일 슬라이더 0–1000 + 직접 입력
+필드 0–9999)</li>
+<li><strong>Ghost shape</strong> (미변형 구조 점선 표시)</li>
+<li><strong>2D 고체</strong> 응력 등고선 컬러 맵 (σ_xx, σ_yy, τ_xy,
+σ_max, σ_min, von Mises)</li>
+<li><strong>보/트러스</strong> 단면력 다이어그램 (BMD, SFD, AFD,
+비틀림)</li>
+<li><strong>보/트러스 컬러 컨투어</strong> — sxx = 축력, syy =
+휨모멘트를 요소 위에 색상으로 표시</li>
+<li><strong>반력 화살표</strong> (Rx, Ry, Mz) 캔버스 오버레이</li>
+<li>색상 범례(Color Bar) 자동 표시</li>
+<li>절점 변위 결과표 (좌측 패널)</li>
+<li>HTML 종합 리포트 출력</li>
+</ul>
+<hr />
+<h2 id="화면-구성">3. 화면 구성</h2>
+<pre><code>┌────────────────────────────── 툴바 (Toolbar) ──────────────────────────────┐
+│  FEPS  [New] [Open] [Save As] [Export] | [▶ Run Analysis] [Output] [Report]│
+│        [↩ Undo] | [Zoom Win] [Zoom All] | [🗑 Delete]                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─── 탭 ────────┐
+│ Pre-Process │ Post-Process │
+├─────────────┴──────────────────────────────────────────────────────────────┐
+│  좌측 패널                │          캔버스 (Canvas)                        │
+│  (Pre / Post 패널)        │  (절점·요소·BC·하중·변형·다이어그램 렌더링)    │
+│  ─ 재료 정의              │                                                 │
+│  ─ 단면 특성 정의         │                                [색상 범례]      │
+│  ─ 중력 설정              │                                                 │
+│  ─ 요소 생성              │                                                 │
+│  ─ 선택 및 할당            │                                                 │
+│  ─ 경계 조건              │                                                 │
+│  ─ 절점 하중              │                                                 │
+│  ─ 표시 옵션              │                                                 │
+└───────────────────────────┴─────────────────────────────────────────────────┘</code></pre>
+<h3 id="툴바-버튼">3.1 툴바 버튼</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>버튼</th>
+<th>기능</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>New</strong></td>
+<td>모델 초기화</td>
+</tr>
+<tr>
+<td><strong>Open</strong></td>
+<td><code>.inp</code> 파일 불러오기</td>
+</tr>
+<tr>
+<td><strong>Save As</strong></td>
+<td>현재 모델을 <code>.inp</code> 파일로 저장</td>
+</tr>
+<tr>
+<td><strong>Export</strong></td>
+<td>VTK 등 외부 형식으로 내보내기</td>
+</tr>
+<tr>
+<td><strong>▶ Run Analysis</strong></td>
+<td>FE 해석 실행</td>
+</tr>
+<tr>
+<td><strong>Output</strong></td>
+<td>해석 결과 텍스트 출력 창 열기</td>
+</tr>
+<tr>
+<td><strong>Report</strong></td>
+<td>HTML 종합 리포트 생성</td>
+</tr>
+<tr>
+<td><strong>↩︎ Undo</strong></td>
+<td>마지막 절점/요소 작업 취소</td>
+</tr>
+<tr>
+<td><strong>Zoom Win</strong></td>
+<td>드래그 영역 줌</td>
+</tr>
+<tr>
+<td><strong>Zoom All</strong></td>
+<td>전체 모델 맞춤 보기</td>
+</tr>
+<tr>
+<td><strong>🗑 Delete</strong></td>
+<td>선택된 절점/요소/선 삭제</td>
+</tr>
+<tr>
+<td><strong>요소 편집기</strong></td>
+<td>브라우저 내장 코드 에디터 열기 (커스텀 요소 작성·등록·관리)</td>
+</tr>
+<tr>
+<td><strong>디버그</strong></td>
+<td>디버그 모드 ON/OFF 토글 — 해석 후 강성행렬·절점력 뷰어 자동
+오픈</td>
+</tr>
+<tr>
+<td><strong>행렬 보기</strong></td>
+<td>디버그 뷰어 수동 열기 (해석 완료 후 언제든지)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="캔버스-마우스-조작">3.2 캔버스 마우스 조작</h3>
+<table>
+<thead>
+<tr>
+<th>조작</th>
+<th>동작</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>스크롤</td>
+<td>확대/축소</td>
+</tr>
+<tr>
+<td>우클릭 드래그</td>
+<td>화면 이동 (Pan)</td>
+</tr>
+<tr>
+<td>좌클릭 (Draw 모드)</td>
+<td>절점 배치 또는 요소 끝점 지정</td>
+</tr>
+<tr>
+<td>좌클릭 드래그 (Select 모드)</td>
+<td>다중 선택</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="입력-파일-형식-.inp">4. 입력 파일 형식 (.inp)</h2>
+<p>FEPS의 표준 입력 파일 형식입니다. 텍스트 편집기로 작성하거나
+<strong>Save As</strong>로 저장합니다.</p>
+<h3 id="전체-구조">4.1 전체 구조</h3>
+<pre><code>&lt;헤더 라인&gt;
+&lt;절점 정의&gt;
+&lt;재료 정의&gt;
+&lt;단면 특성 정의&gt;
+&lt;요소 정의&gt;
+&lt;경계조건 및 하중&gt;
+[&lt;분포하중(ESURF)&gt;]</code></pre>
+<h3 id="헤더-라인">4.2 헤더 라인</h3>
+<pre><code>numNod  dofNod  dim  [gx  gy  gz]</code></pre>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>numNod</code></td>
+<td>전체 절점 수</td>
+</tr>
+<tr>
+<td><code>dofNod</code></td>
+<td>절점당 자유도 수 (2D 트러스=2, 2D 보=3, 3D=6)</td>
+</tr>
+<tr>
+<td><code>dim</code></td>
+<td>공간 차원 (2 또는 3)</td>
+</tr>
+<tr>
+<td><code>gx gy gz</code></td>
+<td>(선택) 중력 가속도 벡터 (예: <code>0 -9.81 0</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>예시:</strong></p>
+<pre><code>5  3  2          ← 절점 5개, 자유도 3(2D 보), 2차원
+5  3  2  0  -9.81  0    ← 중력 포함</code></pre>
+<h3 id="절점-정의">4.3 절점 정의</h3>
+<pre><code>id  x  y  [z]</code></pre>
+<p><strong>예시:</strong></p>
+<pre><code>1   0.0   0.0
+2   3.0   0.0
+3   3.0   4.0</code></pre>
+<h3 id="재료-정의">4.4 재료 정의</h3>
+<pre><code>numMat
+id  E  nu  [rho]</code></pre>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>E</code></td>
+<td>탄성계수 (Young’s Modulus)</td>
+</tr>
+<tr>
+<td><code>nu</code></td>
+<td>포아송 비 (Poisson’s ratio)</td>
+</tr>
+<tr>
+<td><code>rho</code></td>
+<td>(선택) 질량 밀도</td>
+</tr>
+</tbody>
+</table>
+<p><strong>예시:</strong></p>
+<pre><code>1
+1  200e9  0.3  7850</code></pre>
+<h3 id="단면-특성-정의">4.5 단면 특성 정의</h3>
+<pre><code>numProp
+id  A  t  [Iz  Iy  J  alpha]</code></pre>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A</code></td>
+<td>단면적</td>
+</tr>
+<tr>
+<td><code>t</code></td>
+<td>두께 (2D 고체 요소)</td>
+</tr>
+<tr>
+<td><code>Iz</code></td>
+<td>z축 휨 단면2차모멘트</td>
+</tr>
+<tr>
+<td><code>Iy</code></td>
+<td>y축 휨 단면2차모멘트 (3D 보)</td>
+</tr>
+<tr>
+<td><code>J</code></td>
+<td>비틀림 상수 (3D 보)</td>
+</tr>
+<tr>
+<td><code>alpha</code></td>
+<td>열팽창계수</td>
+</tr>
+</tbody>
+</table>
+<p><strong>예시:</strong></p>
+<pre><code>1
+1  4740e-6  1.0  22e-6  0.0  0.0  0.0</code></pre>
+<h3 id="요소-정의">4.6 요소 정의</h3>
+<pre><code>numElem
+TYPE  id  matId  propId  n1  n2  [n3 ...]  [ΔT  wy1  wy2]</code></pre>
+<h4 id="bar2-bar3d-트러스">BAR2 / BAR3D (트러스)</h4>
+<pre><code>BAR2   1  1  1  1  3   0  0</code></pre>
+<p><code>n1 n2 ΔT axialLoad</code> (axialLoad는 현재 미사용)</p>
+<h4 id="beam2d-2d-보">BEAM2D (2D 보)</h4>
+<pre><code>BEAM2D  2  1  1  3  2   0  25  0</code></pre>
+<p><code>n1 n2 ΔT wy1 wy2</code> - <code>wy1</code>, <code>wy2</code>:
+요소 시작/끝의 분포 하중 (kN/m, y방향, + = 위)</p>
+<h4 id="beam3d-3d-보">BEAM3D (3D 보)</h4>
+<pre><code>BEAM3D  1  1  1  1  2   0  0  0  0  0</code></pre>
+<p><code>n1 n2 ΔT wy1 wy2 wz1 wz2</code></p>
+<h4 id="trig3-quad4-2d-고체">TRIG3 / QUAD4 (2D 고체)</h4>
+<pre><code>QUAD4  1  1  1  1  2  3  4
+TRIG3  1  1  1  1  2  3</code></pre>
+<h3 id="경계조건-및-하중">4.7 경계조건 및 하중</h3>
+<pre><code>numBC
+nid  [구속 플래그...]  [하중값...]</code></pre>
+<p><strong>2D 보 (dofNod=3): Dx Dy Rz | Fx Fy Mz</strong></p>
+<pre><code>1   1  1  1   0.0   0.0   0.0      ← 절점1: 고정지점 (Dx=Dy=Rz 구속)
+3   0  0  0  40.0 -80.0   0.0      ← 절점3: Fx=40, Fy=-80 적용</code></pre>
+<p><strong>3D 보 (dofNod=6): Dx Dy Dz Rx Ry Rz | Fx Fy Fz Mx My
+Mz</strong></p>
+<pre><code>1   1 1 1 0 0 0   0. 0. 0. 0. 0. 0.</code></pre>
+<blockquote>
+<p><strong>구속 플래그</strong>: <code>1</code> = 변위 구속,
+<code>0</code> = 자유</p>
+</blockquote>
+<h3 id="분포하중-esurf-섹션-선택">4.8 분포하중 (ESURF 섹션, 선택)</h3>
+<p>경계조건 블록 아래에 추가합니다.</p>
+<pre><code>numESURF
+eid  wy1  wy2          ← BEAM2D/BAR2
+eid  wy1  wy2  wz1  wz2   ← BEAM3D
+eid  side  qx1  qy1  qx2  qy2   ← 2D 고체 (면하중)</code></pre>
+<hr />
+<h2 id="사전처리-pre-process-1">5. 사전처리 (Pre-Process)</h2>
+<h3 id="재료-정의-1">5.1 재료 정의</h3>
+<ol type="1">
+<li>좌측 패널 <strong>Materials</strong> 섹션에서 <code>E</code>,
+<code>ν</code>, <code>ρ</code> 입력</li>
+<li><strong>Add Material</strong> 클릭 → 재료 목록에 추가</li>
+<li>여러 재료를 순차적으로 추가 가능</li>
+</ol>
+<h4 id="재료-값-수정-edit-in-place">재료 값 수정 (Edit-in-Place)</h4>
+<p>이미 추가된 재료를 수정하려면:</p>
+<ol type="1">
+<li>재료 목록 항목 오른쪽의 <strong>✎ (연필)</strong> 버튼 클릭
+<ul>
+<li>해당 항목이 <strong>파란색 배경</strong>으로 강조되고, 버튼 텍스트가
+<strong><code>Update M1</code></strong> 으로 변경됨</li>
+<li>현재 재료값(E, ν, ρ)이 입력 필드에 자동으로 불러와짐</li>
+</ul></li>
+<li>입력 필드에서 값을 수정한 후 <strong>Update M1</strong> 클릭 → 기존
+재료 in-place 업데이트</li>
+<li>✎ 버튼을 다시 클릭하면 <strong>편집 취소</strong> (Add Material
+모드로 복귀)</li>
+</ol>
+<blockquote>
+<p><strong>중요</strong>: 재료를 수정한 후에는 반드시 <strong>▶ Run
+Analysis</strong> 를 다시 실행해야 새 E·ν 값이 해석 결과에
+반영됩니다.</p>
+</blockquote>
+<h3 id="단면-특성-정의-1">5.2 단면 특성 정의</h3>
+<ol type="1">
+<li><strong>Section Properties</strong> 섹션에서 <code>A</code>,
+<code>t</code>, <code>Iz</code>, <code>Iy</code>, <code>J</code>,
+<code>α</code> 입력</li>
+<li><strong>Add Property</strong> 클릭 → 단면 목록에 추가</li>
+</ol>
+<h4 id="단면-특성-수정-edit-in-place">단면 특성 수정
+(Edit-in-Place)</h4>
+<p>재료 수정과 동일한 방법으로 <strong>✎ 버튼</strong> → 값 수정 →
+<strong>Update P{id}</strong> 클릭.</p>
+<blockquote>
+<p><strong>2D 고체 요소(QUAD4, TRIG3) 주의</strong>: 이 요소들은 단면적
+<code>A</code>를 사용하지 않으며 두께 <code>t</code>만 적용됩니다.
+<code>A</code> 필드의 툴팁에서도 이 내용을 확인할 수 있습니다.</p>
+</blockquote>
+<blockquote>
+<p><strong>팁</strong>: 2D 고체 요소는 <code>t</code> (두께)만 필요.
+보/트러스는 <code>A</code>, <code>Iz</code> 필수.</p>
+</blockquote>
+<h3 id="중력-설정">5.3 중력 설정</h3>
+<ul>
+<li><strong>Gravity</strong> 섹션에서 <code>gx</code>, <code>gy</code>,
+<code>gz</code> 입력</li>
+<li>중력 방향은 모델 좌표계 기준: 아래 방향이 <code>-y</code>인 경우
+<code>gy = -9.81</code></li>
+<li>자중 계산에는 재료의 <code>ρ</code>(밀도)가 필요</li>
+</ul>
+<h3 id="요소-생성">5.4 요소 생성</h3>
+<h4 id="d-요소-보트러스-직접-그리기">1D 요소 (보/트러스) — 직접
+그리기</h4>
+<ol type="1">
+<li><strong>Type</strong> 드롭다운에서 <code>BAR2</code> /
+<code>BEAM2D</code> / <code>BAR3D</code> / <code>BEAM3D</code> 선택</li>
+<li><strong>Mat</strong>, <strong>Prop</strong> 선택</li>
+<li><strong>Close Path 체크 해제</strong> (연속 폴리라인 모드)</li>
+<li><strong>▶ Start Draw</strong> 클릭</li>
+<li>캔버스에서 절점 위치 순서대로 클릭 (자동 절점 생성 + 요소 생성)</li>
+<li><strong>■ End Draw</strong> 클릭으로 종료</li>
+</ol>
+<blockquote>
+<p><strong>Snap to Grid</strong>: 그리드 스냅을 켜면 입력 정밀도 향상.
+Spacing(간격), Count(격자 수) 조정 가능.</p>
+</blockquote>
+<h4 id="d-고체-요소-폴리곤-메시-생성">2D 고체 요소 — 폴리곤 메시
+생성</h4>
+<ol type="1">
+<li><strong>Type</strong> 드롭다운에서 <code>TRIG3</code> /
+<code>TRIG6</code> / <code>QUAD4</code> / <code>QUAD8</code> 선택</li>
+<li><strong>Close Path 체크</strong> (폐합 폴리곤 모드)</li>
+<li><strong>▶ Start Draw</strong> 클릭 → 폴리곤 꼭짓점 순서대로
+클릭</li>
+<li><strong>■ End Draw</strong> 클릭으로 폴리곤 완성</li>
+<li><strong>Div</strong> (분할 수) 설정 후 <strong>Mesh Polygon</strong>
+클릭</li>
+<li>(선택) <strong>+ Add Hole</strong> 로 내부 구멍 추가 후 <strong>Mesh
+Polygon</strong> 재실행</li>
+</ol>
+<h4 id="절점만-생성">절점만 생성</h4>
+<ul>
+<li><strong>✚ Create Node</strong> 버튼 클릭 후 캔버스 클릭</li>
+</ul>
+<h4 id="undo">Undo</h4>
+<ul>
+<li>툴바의 <strong>↩︎ Undo</strong> 로 마지막 절점/요소 삭제</li>
+</ul>
+<h3 id="선택-및-할당">5.5 선택 및 할당</h3>
+<ol type="1">
+<li><strong>🔲 Select Elem</strong> 또는 <strong>⊙ Select Nodes</strong>
+클릭</li>
+<li>캔버스에서 객체 클릭 또는 드래그로 다중 선택</li>
+<li><strong>Assign Mat/Prop</strong> — 선택 요소에 재료/단면 재할당</li>
+<li><strong>Assign BC/Load</strong> — 선택 절점에 경계조건/하중
+할당</li>
+</ol>
+<h3 id="경계조건-및-절점-하중">5.6 경계조건 및 절점 하중</h3>
+<p>절점을 선택한 후 <strong>Assign BC/Load</strong> 를 클릭하면 대화창이
+열립니다.</p>
+<ul>
+<li><strong>구속 (BC)</strong>: 각 자유도별 구속 체크박스 선택</li>
+<li><strong>하중 (Load)</strong>: 각 자유도별 하중값 입력</li>
+<li>설정 완료 시 <strong>BC Icons</strong> 및 <strong>Load
+Arrows</strong> 가 캔버스에 표시됨</li>
+</ul>
+<h4 id="bc-심볼-표기">BC 심볼 표기</h4>
+<table>
+<thead>
+<tr>
+<th>심볼</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>녹색 삼각형</td>
+<td>핀 지점 (Dx·Dy 구속)</td>
+</tr>
+<tr>
+<td>파란 원 + 선</td>
+<td>롤러 지점 (Dx 또는 Dy 구속)</td>
+</tr>
+<tr>
+<td>빨간 해칭 사각형</td>
+<td>완전 고정 (모든 DOF 구속)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>심볼 크기는 구조물 전체 크기에 자동 비례 조정됩니다.</p>
+</blockquote>
+<h3 id="표시-옵션">5.7 표시 옵션</h3>
+<table>
+<thead>
+<tr>
+<th>옵션</th>
+<th>기능</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Node IDs</td>
+<td>절점 번호 표시</td>
+</tr>
+<tr>
+<td>Element IDs</td>
+<td>요소 번호 표시</td>
+</tr>
+<tr>
+<td>BC Icons</td>
+<td>지점 조건 심볼 표시</td>
+</tr>
+<tr>
+<td>Load Arrows</td>
+<td>절점 하중 화살표 표시</td>
+</tr>
+<tr>
+<td>Color by Material</td>
+<td>재료별 색상 구분</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="해석-실행">6. 해석 실행</h2>
+<h3 id="실행-방법">6.1 실행 방법</h3>
+<p>툴바의 <strong>▶ Run Analysis</strong> 버튼 클릭</p>
+<ul>
+<li>해석 완료 시 상태 표시줄에 소요 시간 및 자유도 수 표시</li>
+<li>자동으로 <strong>Post-Process</strong> 탭으로 전환</li>
+</ul>
+<h3 id="해석-알고리즘">6.2 해석 알고리즘</h3>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>강성 행렬 조립</td>
+<td>요소별 국소 강성 → 전체 강성 행렬 조립</td>
+</tr>
+<tr>
+<td>등가 절점 하중</td>
+<td>분포하중·자중 → 절점 등가 하중 변환</td>
+</tr>
+<tr>
+<td>경계조건 적용</td>
+<td>구속 DOF 제거 (Penalty 또는 Elimination)</td>
+</tr>
+<tr>
+<td>연립방정식 풀이</td>
+<td>LU 분해 (Partial Pivoting)</td>
+</tr>
+<tr>
+<td>후처리 계산</td>
+<td>반력, 요소 단면력, 절점 응력 계산</td>
+</tr>
+</tbody>
+</table>
+<h3 id="결과-저장">6.3 결과 저장</h3>
+<ul>
+<li>해석 결과는 메모리에 유지되며, <strong>Output</strong> 버튼으로
+텍스트 형태 조회 가능</li>
+</ul>
+<hr />
+<h2 id="후처리-post-process-1">7. 후처리 (Post-Process)</h2>
+<h3 id="변형-형상">7.1 변형 형상</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>설정</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Show Deformed</strong></td>
+<td>변형 형상 표시 ON/OFF</td>
+</tr>
+<tr>
+<td><strong>Ghost Shape</strong></td>
+<td>미변형 구조를 점선으로 표시</td>
+</tr>
+<tr>
+<td><strong>Scale</strong> (슬라이더 + 입력 필드)</td>
+<td>변형 배율 조정. 슬라이더 범위 0–1000, 숫자 입력 필드로 0–9999 이상의
+값도 직접 입력 가능.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="자동-스케일auto-scale-동작-방식">자동 스케일(Auto-Scale) 동작
+방식</h4>
+<ul>
+<li><strong>첫 번째 해석 시</strong>: 최대 변위가 모델 특성 길이의 약
+25%가 되도록 자동 스케일을 계산합니다.
+<ul>
+<li>1D 모델(보/트러스): 평균 요소 길이를 특성 길이로 사용</li>
+<li>2D 고체 모델: 전체 절점의 바운딩 박스 대각선 길이를 특성 길이로
+사용</li>
+</ul></li>
+<li><strong>재해석 시 (재료·하중 변경 후)</strong>: 스케일이 첫 번째
+해석 기준으로 <strong>고정(잠금)</strong> 됩니다. 따라서 E를 2배로
+높이면 변형 화면도 실제와 동일하게 약 절반으로 줄어드는 것이 정확하게
+시각화됩니다.</li>
+<li><strong>모델 변경 (New/Open/Undo 후)</strong>: 자동 스케일 잠금이
+해제되어 다음 해석 시 다시 자동 계산합니다.</li>
+</ul>
+<blockquote>
+<p><strong>스케일 수동 설정</strong>: 슬라이더 옆 숫자 입력 필드에 직접
+값을 입력하면 슬라이더 최댓값(1000)을 초과하는 배율도 즉시 적용됩니다.
+두 컨트롤은 양방향으로 동기화됩니다.</p>
+</blockquote>
+<h3 id="단면력-다이어그램-1d-보트러스">7.2 단면력 다이어그램 (1D
+보/트러스)</h3>
+<p><strong>Result Component</strong> 드롭다운에서 선택:</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Axial Force (N)</strong></td>
+<td>축력 (AFD)</td>
+</tr>
+<tr>
+<td><strong>Shear Force Vy</strong></td>
+<td>y방향 전단력 (SFD)</td>
+</tr>
+<tr>
+<td><strong>Bending Moment Mz</strong></td>
+<td>z축 휨모멘트 (BMD)</td>
+</tr>
+<tr>
+<td><strong>Shear Force Vz (3D)</strong></td>
+<td>3D z방향 전단력</td>
+</tr>
+<tr>
+<td><strong>Bending Moment My (3D)</strong></td>
+<td>3D y축 휨모멘트</td>
+</tr>
+<tr>
+<td><strong>Torsion T (3D)</strong></td>
+<td>3D 비틀림 모멘트</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>다이어그램 높이는 <strong>Diagram Scale</strong> 슬라이더(1–500)
+또는 옆의 숫자 입력 필드(1–9999)로 조정</li>
+<li>슬라이더와 입력 필드는 양방향 동기화 — 입력 필드에서 500 초과 값도
+직접 입력 가능</li>
+<li>끝점에 수치 자동 표시</li>
+<li>BMD는 분포하중에 의한 포물선 형상까지 정확히 표현</li>
+</ul>
+<h4 id="부호-규약">부호 규약</h4>
+<ul>
+<li>SFD: <code>V(x) = −V₁ − wy₁·x − (wy₂−wy₁)·x²/(2L)</code></li>
+<li>BMD:
+<code>M(x) = −M₁ + V₁·x + wy₁·x²/2 + (wy₂−wy₁)·x³/(6L)</code></li>
+<li>AFD: <code>N(x) = −N₁ + (N₁+N₂)·t</code></li>
+</ul>
+<h3 id="보트러스-컬러-컨투어">7.3 보/트러스 컬러 컨투어</h3>
+<p><strong>Result Component</strong>에서 <code>σ_xx</code> 또는
+<code>σ_yy</code> 선택 시, 보/트러스 전용 모델에서 자동 활성화:</p>
+<table>
+<colgroup>
+<col style="width: 35%" />
+<col style="width: 64%" />
+</colgroup>
+<thead>
+<tr>
+<th>선택</th>
+<th>표시 내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>σ_xx</code></td>
+<td><strong>축력 (Axial Force)</strong> 을 요소 위에 그라디언트 색상으로
+표시</td>
+</tr>
+<tr>
+<td><code>σ_yy</code></td>
+<td><strong>휨모멘트 (Mz)</strong> 를 요소 위에 그라디언트 색상으로
+표시</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>파란색 = 음수 (압축/음의 모멘트), 빨간색 = 양수 (인장/양의
+모멘트)</li>
+<li>30구간 세그먼트로 연속 그라디언트 표현</li>
+<li>우측 <strong>Color Bar</strong>에 최솟값/최댓값 범례 표시</li>
+</ul>
+<h3 id="d-고체-요소-응력-등고선">7.4 2D 고체 요소 응력 등고선</h3>
+<p><strong>Result Component</strong> 드롭다운에서 선택:</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>σ_xx</code></td>
+<td>x방향 수직응력</td>
+</tr>
+<tr>
+<td><code>σ_yy</code></td>
+<td>y방향 수직응력</td>
+</tr>
+<tr>
+<td><code>τ_xy</code></td>
+<td>전단응력</td>
+</tr>
+<tr>
+<td><code>σ_max</code></td>
+<td>최대 주응력</td>
+</tr>
+<tr>
+<td><code>σ_min</code></td>
+<td>최소 주응력</td>
+</tr>
+<tr>
+<td><strong>von Mises</strong></td>
+<td>등가 응력 (설계 기준)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>절점 평균 응력(Node Averaging)으로 부드러운 컨투어 표현</li>
+<li>우측 <strong>Color Bar</strong> 에 범위 자동 표시</li>
+</ul>
+<h3 id="반력-오버레이">7.5 반력 오버레이</h3>
+<p><strong>Overlays</strong> 섹션에서:</p>
+<table>
+<thead>
+<tr>
+<th>옵션</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Reaction Forces</strong></td>
+<td>각 지점의 반력 화살표 및 수치 표시</td>
+</tr>
+<tr>
+<td><strong>Applied Loads</strong></td>
+<td>적용 하중 화살표 표시</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>반력 레이블: <code>Rx=</code>, <code>Ry=</code>, <code>Mz=</code>
+(2D 모델 기준)</li>
+<li>수평 반력(Rx)과 모멘트 반력(Mz) 레이블이 겹치지 않도록 자동 수직
+오프셋 처리</li>
+</ul>
+<hr />
+<h2 id="결과-출력-및-내보내기">8. 결과 출력 및 내보내기</h2>
+<h3 id="output-텍스트-결과">8.1 Output (텍스트 결과)</h3>
+<p>툴바 <strong>Output</strong> 버튼 클릭 → 팝업 창에 다음 내용
+표시:</p>
+<pre><code>── Node Displacements ──
+Node   Ux          Uy          Rz
+  1    0.000e+00   0.000e+00   0.000e+00
+  2   -1.234e-03  -5.678e-04   2.345e-05
+  ...
+
+── Reactions ──
+Node   Rx          Ry          Mz
+  1    2.503e+01  -5.000e+01   1.739e+01
+  ...
+
+── Element Forces ──
+Elem  N1       V1       M1       N2       V2       M2
+  1   3.002  -25.03  -17.39  -3.002  -20.04   12.90
+  ...</code></pre>
+<h3 id="report-html-리포트">8.2 Report (HTML 리포트)</h3>
+<p>툴바 <strong>Report</strong> 버튼 클릭 → 브라우저 새 탭에 전체 리포트
+생성:</p>
+<ul>
+<li>모델 정보 (절점·요소·재료·단면 테이블)</li>
+<li>절점 변위 결과</li>
+<li>반력 결과</li>
+<li>요소별 단면력 (보/트러스)</li>
+<li>요소별 응력 (2D 고체)</li>
+<li>최대/최소값 자동 강조</li>
+</ul>
+<h3 id="export-파일-내보내기">8.3 Export (파일 내보내기)</h3>
+<ul>
+<li><strong>VTK 형식</strong> (<code>.vtu</code>) 내보내기 지원</li>
+<li>ParaView 등 외부 후처리 프로그램에서 시각화 가능</li>
+</ul>
+<h3 id="save-as">8.4 Save As</h3>
+<ul>
+<li>현재 모델 전체를 FEPS <code>.inp</code> 형식으로 저장</li>
+<li>경계조건, 하중, 분포하중(ESURF) 포함</li>
+</ul>
+<hr />
+<h2 id="예제-모델">9. 예제 모델</h2>
+<blockquote>
+<p>아래 예제 파일은 <code>examples/</code> 폴더에서도 직접 불러올 수
+있습니다. FEPS에서 <strong>Open</strong> → 해당 <code>.inp</code> 파일
+선택 → <strong>▶ Run Analysis</strong></p>
+</blockquote>
+<hr />
+<h3 id="예제-1-단순-트러스-bar2">예제 1: 단순 트러스 (BAR2)</h3>
+<p>3개 절점, 3개 BAR2 요소로 구성된 단순 2D 트러스입니다.</p>
+<pre><code>3 2 2
+1   0.0   0.0
+2   8.0   0.0
+3   4.0   3.0
+1
+1  20000.0  0.0
+1
+1  1.0  0.0  0.0
+3
+BAR2  1  1  1  1  3  0  0
+BAR2  2  1  1  3  2  0  0
+BAR2  3  1  1  1  2  0  0
+3
+1  1  1   0.0   0.0   0.0   0.0
+2  0  1   0.0   0.0   0.0   0.0
+3  0  0  40.0 -80.0   0.0   0.0</code></pre>
+<p><strong>구조 설명</strong></p>
+<table>
+<thead>
+<tr>
+<th>절점</th>
+<th>좌표</th>
+<th>경계조건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>(0, 0)</td>
+<td>핀 지점 (Dx·Dy 구속)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>(8, 0)</td>
+<td>롤러 (Dy 구속)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>(4, 3)</td>
+<td>Fx=40, Fy=−80 집중하중</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>헤더: <code>dofNod=2</code> (트러스, 절점당 2 DOF),
+<code>dim=2</code></li>
+<li>재료: E=20000, ν=0.0</li>
+<li>단면: A=1.0 (t, Iz 불필요)</li>
+<li><strong>예상 결과</strong>: 절점3에서 하향 변위 발생; 요소 1·2 인장,
+요소 3 압축</li>
+</ul>
+<hr />
+<h3 id="예제-2-외팔보-beam2d">예제 2: 외팔보 (BEAM2D)</h3>
+<p>길이 5m 외팔보에 자유단 집중하중 -10 kN 적용.</p>
+<pre><code>2 3 2
+1   0.0   0.0
+2   5.0   0.0
+1
+1  200000  0.3
+1
+1  0.01  1.0  8.333e-6  0.0  0.0  0.0
+1
+BEAM2D  1  1  1  1  2  0  0  0
+2
+1  1  1  1   0.0   0.0   0.0   0.0   0.0   0.0
+2  0  0  0   0.0 -10.0   0.0   0.0   0.0   0.0</code></pre>
+<p><strong>구조 설명</strong></p>
+<table>
+<thead>
+<tr>
+<th>절점</th>
+<th>좌표</th>
+<th>경계조건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>(0, 0)</td>
+<td>완전 고정 (Dx·Dy·Rz 구속)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>(5, 0)</td>
+<td>Fy=−10 kN 집중하중</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>헤더: <code>dofNod=3</code> (보, 절점당 3 DOF)</li>
+<li>재료: E=200000 MPa, ν=0.3</li>
+<li>단면: A=0.01 m², t=1.0, Iz=8.333×10⁻⁶ m⁴ (100mm×100mm 정사각형
+단면)</li>
+<li><strong>이론 해</strong>: δ = PL³/(3EI) =
+10×5³/(3×200000×8.333×10⁻⁶) ≈ <strong>250 mm</strong></li>
+<li><strong>예상 결과</strong>: 절점 2 Uy≈−250; 고정단 반력 Ry=10,
+Mz=50</li>
+</ul>
+<blockquote>
+<p><strong>스케일 팁</strong>: 보 해석 후 <code>Scale</code> 슬라이더를
+조정하면 처짐 형상을 확인하기 쉽습니다. Diagram Scale로 BMD·SFD
+다이어그램 높이를 조절하세요.</p>
+</blockquote>
+<hr />
+<h3 id="예제-3-2d-포털-라멘-beam2d-분포하중">예제 3: 2D 포털 라멘
+(BEAM2D + 분포하중)</h3>
+<p>기둥 2개 + 보 1개로 구성된 단층 포털 라멘. 보에 등분포 하중 적용.</p>
+<pre><code>4 3 2
+1   0.0   0.0
+2   0.0   4.0
+3   6.0   4.0
+4   6.0   0.0
+1
+1  210000  0.3
+1
+1  0.02  1.0  6.667e-5  0.0  0.0  0.0
+3
+BEAM2D  1  1  1  1  2  0   0   0
+BEAM2D  2  1  1  2  3  0 -20 -20
+BEAM2D  3  1  1  3  4  0   0   0
+4
+1  1  1  1   0.0  0.0  0.0   0.0   0.0   0.0
+2  0  0  0   0.0  0.0  0.0   0.0   0.0   0.0
+3  0  0  0   0.0  0.0  0.0   0.0   0.0   0.0
+4  1  1  1   0.0  0.0  0.0   0.0   0.0   0.0</code></pre>
+<p><strong>구조 설명</strong></p>
+<table>
+<thead>
+<tr>
+<th>절점</th>
+<th>좌표</th>
+<th>경계조건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>(0, 0)</td>
+<td>완전 고정</td>
+</tr>
+<tr>
+<td>2</td>
+<td>(0, 4)</td>
+<td>자유</td>
+</tr>
+<tr>
+<td>3</td>
+<td>(6, 4)</td>
+<td>자유</td>
+</tr>
+<tr>
+<td>4</td>
+<td>(6, 0)</td>
+<td>완전 고정</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>요소 2 (수평 보, 절점2→3): 등분포 하중 wy1=wy2=−20 kN/m (아래
+방향)</li>
+<li>단면: A=0.02 m², Iz=6.667×10⁻⁵ m⁴ (IPB 200 근사)</li>
+<li><strong>예상 결과</strong>: 보 중앙에서 최대 처짐; BMD에서 양단
+부모멘트 + 중앙 정모멘트 확인</li>
+</ul>
+<hr />
+<h3 id="예제-4-2d-고체-캔틸레버-플레이트-quad4">예제 4: 2D 고체 캔틸레버
+플레이트 (QUAD4)</h3>
+<p>두께 1m 캔틸레버 직사각형 플레이트. QUAD4 요소 4×2 메시.</p>
+<pre><code>15 2 2
+1   0.0   0.0
+2   0.0   1.0
+3   1.0   0.0
+4   1.0   1.0
+5   2.0   0.0
+6   2.0   1.0
+7   3.0   0.0
+8   3.0   1.0
+9   4.0   0.0
+10  4.0   1.0
+11  5.0   0.0
+12  5.0   1.0
+13  6.0   0.0
+14  6.0   1.0
+15  7.0   0.0
+16  7.0   1.0
+1
+1  1000  0.25
+1
+1  1.0  1.0  0.0  0.0  0.0  0.0
+8
+QUAD4  1  1  1   1  3  4  2    0  0  0
+QUAD4  2  1  1   3  5  6  4    0  0  0
+QUAD4  3  1  1   5  7  8  6    0  0  0
+QUAD4  4  1  1   7  9 10  8    0  0  0
+QUAD4  5  1  1   9 11 12 10    0  0  0
+QUAD4  6  1  1  11 13 14 12    0  0  0
+QUAD4  7  1  1  13 15 16 14    0  0  0
+QUAD4  8  1  1  15 17 18 16    0  0  0
+4
+1  1  1   0.0   0.0   0.0   0.0
+2  1  1   0.0   0.0   0.0   0.0</code></pre>
+<blockquote>
+<p><strong>참고</strong>: 위 예제는 절점 수와 요소 수를 맞춰 직접
+타이핑하거나, FEPS에서 <strong>직사각형 폴리곤 그리기 → Mesh
+Polygon</strong>으로 동등한 메시를 자동 생성할 수 있습니다.</p>
+</blockquote>
+<p><strong>더 빠른 방법 — 대화형 메시 생성</strong></p>
+<ol type="1">
+<li><strong>Type</strong>: <code>QUAD4</code>, <strong>Mat</strong>: M1,
+<strong>Prop</strong>: P1 선택</li>
+<li><strong>Close Path 체크</strong></li>
+<li><strong>▶ Start Draw</strong> → 캔버스에서 사각형 4꼭짓점 클릭 (예:
+(0,0)→(7,0)→(7,1)→(0,1))</li>
+<li><strong>■ End Draw</strong></li>
+<li><strong>Div</strong> = 4 → <strong>Mesh Polygon</strong></li>
+<li>좌측 절점들 선택 → <strong>Assign BC/Load</strong> → Dx·Dy 구속</li>
+<li>우측 절점들 선택 → <strong>Assign BC/Load</strong> → Fy = −500
+적용</li>
+<li><strong>▶ Run Analysis</strong></li>
+</ol>
+<p><strong>탄성계수 변화 실험 (E-change 검증)</strong></p>
+<table>
+<thead>
+<tr>
+<th>E 값</th>
+<th>예상 최대 Uy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1000</td>
+<td>기준값 δ₀</td>
+</tr>
+<tr>
+<td>2000</td>
+<td>δ₀ / 2</td>
+</tr>
+<tr>
+<td>500</td>
+<td>δ₀ × 2</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>재료를 ✎ 버튼으로 편집 후 재해석하면, <strong>변형 스케일이
+유지</strong>되어 위 비례관계가 시각적으로 정확히 확인됩니다. 응력
+컨투어(σ_xx, von Mises)는 E에 무관하게 동일합니다.</p>
+</blockquote>
+<hr />
+<h3 id="예제-5-3d-공간-트러스-bar3d">예제 5: 3D 공간 트러스 (BAR3D)</h3>
+<p>2절점 3D 트러스 — <code>dofNod=3</code>, <code>dim=3</code>.</p>
+<pre><code>4 3 3
+1   0.0   0.0   0.0
+2   4.0   0.0   0.0
+3   4.0   3.0   0.0
+4   4.0   0.0   3.0
+1
+1  200000  0.0
+1
+1  1.0  0.0  0.0
+4
+BAR3D  1  1  1  1  2  0  0
+BAR3D  2  1  1  1  3  0  0
+BAR3D  3  1  1  1  4  0  0
+BAR3D  4  1  1  2  3  0  0
+4
+1  1  1  1   0.0   0.0   0.0   0.0   0.0   0.0
+2  0  1  1   0.0   0.0   0.0   0.0   0.0   0.0
+3  0  0  1   0.0   0.0   0.0   0.0   0.0   0.0
+4  0  0  1   0.0 -100.0   0.0   0.0   0.0   0.0</code></pre>
+<ul>
+<li>헤더: <code>dofNod=3</code> (3D 트러스), <code>dim=3</code></li>
+<li>절점 1: 핀 고정, 절점 2·3: z방향 구속, 절점 4: Fy=−100 하중</li>
+<li>3D 렌더링은 등각 투시로 표시됨</li>
+</ul>
+<hr />
+<h2 id="단위-및-주의사항">10. 단위 및 주의사항</h2>
+<h3 id="단위계">10.1 단위계</h3>
+<p>FEPS는 <strong>일관 단위계(Consistent Unit System)</strong> 를
+사용합니다. 단위계를 통일하면 결과가 올바르게 계산됩니다.</p>
+<table>
+<thead>
+<tr>
+<th>물리량</th>
+<th>SI 단위 예</th>
+<th>공학 단위 예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>길이</td>
+<td>m</td>
+<td>mm</td>
+</tr>
+<tr>
+<td>탄성계수 E</td>
+<td>Pa (N/m²)</td>
+<td>MPa (N/mm²)</td>
+</tr>
+<tr>
+<td>하중</td>
+<td>N</td>
+<td>N</td>
+</tr>
+<tr>
+<td>응력</td>
+<td>Pa</td>
+<td>MPa</td>
+</tr>
+<tr>
+<td>단면2차모멘트</td>
+<td>m⁴</td>
+<td>mm⁴</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>SI 단위계 사용 시: <code>E = 200e9 Pa</code>,
+<code>F = 1000 N</code>, <code>L = 1.0 m</code> mm 단위계 사용 시:
+<code>E = 200000 MPa</code>, <code>F = 1000 N</code>,
+<code>L = 1000 mm</code></p>
+</blockquote>
+<h3 id="주의사항">10.2 주의사항</h3>
+<ol type="1">
+<li><p><strong>자유도 수 일치</strong>: 헤더의 <code>dofNod</code>와
+실제 요소 유형이 일치해야 합니다.</p>
+<ul>
+<li>2D 보/프레임: <code>dofNod = 3</code></li>
+<li>2D 트러스: <code>dofNod = 2</code></li>
+<li>3D 보/프레임: <code>dofNod = 6</code></li>
+<li>3D 트러스: <code>dofNod = 3</code></li>
+</ul></li>
+<li><p><strong>최소 구속 조건</strong>: 구조물이 안정(정적 정정 이상)이
+되도록 충분한 구속조건을 설정해야 합니다. 구속이 부족하면 특이
+행렬(Singular Matrix)이 되어 해석 실패.</p></li>
+<li><p><strong>절점 번호</strong>: 1부터 순차적으로 부여 권장. 간격이
+크면 행렬 크기가 커져 계산 비효율.</p></li>
+<li><p><strong>보 요소 분포하중</strong>: <code>wy1</code>,
+<code>wy2</code> 값은 <strong>전역 y방향</strong> 기준이며, 양수 = 위
+방향.</p></li>
+<li><p><strong>온도 하중 (ΔT)</strong>: 요소 정의 시 <code>ΔT</code> 값
+설정 + 단면 특성에 <code>alpha</code> 입력 필요.</p></li>
+<li><p><strong>대규모 모델</strong>: 본 프로그램은 Dense 행렬 LU 분해를
+사용하므로, 자유도가 수천 개 이상이면 계산 시간이 증가합니다. 수백~1000
+자유도 이하의 교육/연구용 모델에 최적화되어 있습니다.</p></li>
+</ol>
+<hr />
+<hr />
+<h2 id="요소-코드-에디터-학생-요소-개발">11. 요소 코드 에디터 (학생 요소
+개발)</h2>
+<p>FEPS는 학생 또는 개발자가 <strong>브라우저 안에서 직접 JavaScript
+코드로 새로운 유한요소를 작성하고 즉시 해석에 사용</strong>할 수 있는
+내장 코드 에디터를 제공합니다.</p>
+<h3 id="에디터-열기">11.1 에디터 열기</h3>
+<p>툴바의 <strong>요소 편집기</strong> 버튼을 클릭합니다.</p>
+<h3 id="화면-구성-1">11.2 화면 구성</h3>
+<pre><code>┌──────────────────────────────────────────────────────────┐
+│  요소 코드 에디터 (Element Code Editor)                  │
+│  템플릿: [드롭다운▼]  [불러오기]  [▶ 등록]  [초기화]    │
+├─────────────────────────────┬────────────────────────────┤
+│  코드 입력 (JavaScript)     │  등록된 요소 목록          │
+│                             │  (💾=저장됨, 🗑️=삭제)      │
+│  textarea                   ├────────────────────────────┤
+│                             │  실행 로그                 │
+└─────────────────────────────┴────────────────────────────┘
+│  [💾 내보내기]  [📂 파일 열기]        [🗑️ 저장 초기화]  [닫기] │
+└──────────────────────────────────────────────────────────┘</code></pre>
+<h3 id="제공-템플릿">11.3 제공 템플릿</h3>
+<p>드롭다운에서 템플릿을 선택한 후 <strong>불러오기</strong> 를
+클릭합니다.</p>
+<table>
+<thead>
+<tr>
+<th>템플릿</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>QUAD5</strong></td>
+<td>버블 함수 보강 5절점 사각형 — Gauss 적분</td>
+</tr>
+<tr>
+<td><strong>QUAD8</strong></td>
+<td>8절점 세렌디피티 사각형</td>
+</tr>
+<tr>
+<td><strong>QUAD9</strong></td>
+<td>9절점 라그랑지 사각형</td>
+</tr>
+<tr>
+<td><strong>TRIG6</strong></td>
+<td>6절점 라그랑지 삼각형</td>
+</tr>
+<tr>
+<td><strong>BAR2_3N</strong></td>
+<td>3절점 2D 봉 요소 (축력)</td>
+</tr>
+<tr>
+<td><strong>TIMBEAM2D_2N</strong></td>
+<td>2절점 티모셴코 보 (전단변형 포함)</td>
+</tr>
+<tr>
+<td><strong>TIMBEAM2D_3N</strong></td>
+<td>3절점 티모셴코 보</td>
+</tr>
+<tr>
+<td><strong>빈 템플릿</strong></td>
+<td>solid2d / bar1d / beam2d_tim 형태 기본 구조</td>
+</tr>
+</tbody>
+</table>
+<h3 id="요소-등록">11.4 요소 등록</h3>
+<ol type="1">
+<li>코드 작성 완료 후 <strong>▶ 등록 (Register)</strong> 클릭</li>
+<li>실행 로그에 등록 성공/실패 메시지 확인</li>
+<li>등록된 요소는 즉시 요소 유형 드롭다운에서 선택 가능</li>
+<li><strong>localStorage 자동 저장</strong>: 등록 성공 시 브라우저 로컬
+저장소에 자동 저장됨 → 페이지 새로고침 후에도 자동 복원</li>
+</ol>
+<h3 id="파일-저장-및-불러오기">11.5 파일 저장 및 불러오기</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>버튼</th>
+<th>동작</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>💾 내보내기</strong></td>
+<td>에디터의 현재 코드를 <code>.js</code> 파일로 로컬 다운로드</td>
+</tr>
+<tr>
+<td><strong>📂 파일 열기</strong></td>
+<td>로컬 <code>.js</code> 파일을 에디터에 불러옴 (등록은 별도 클릭
+필요)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="저장된-요소-관리">11.6 저장된 요소 관리</h3>
+<ul>
+<li>좌측 목록에서 💾 아이콘이 붙은 요소 = localStorage에 저장된
+요소</li>
+<li>목록 항목 옆 <strong>🗑️</strong> 버튼으로 해당 요소만
+localStorage에서 삭제</li>
+<li><strong>🗑️ 저장 초기화</strong>: 모든 저장 데이터 삭제 후 페이지
+새로고침</li>
+</ul>
+<blockquote>
+<p><strong>팁</strong>: 수업에서 여러 학생이 동시에 접속해도
+localStorage는 <strong>브라우저별로 완전히 독립</strong>됩니다. 각
+학생의 코드가 서로 영향을 주지 않습니다.</p>
+</blockquote>
+<h3 id="요소-코드-구조">11.7 요소 코드 구조</h3>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>FepsElementRegistry<span class="op">.</span><span class="fu">register</span>({</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">// ── 필수 필드 ──</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">name</span>    <span class="op">:</span> <span class="st">&#39;MY_ELEM&#39;</span><span class="op">,</span>      <span class="co">// 요소 유형 이름 (대문자, 고유값)</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">category</span><span class="op">:</span> <span class="st">&#39;solid2d&#39;</span><span class="op">,</span>      <span class="co">// 분류: &#39;solid2d&#39; | &#39;bar1d&#39; | &#39;beam2d_tim&#39;</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">nNodes</span>  <span class="op">:</span> <span class="dv">4</span><span class="op">,</span>              <span class="co">// 절점 수</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">dofNode</span> <span class="op">:</span> <span class="dv">2</span><span class="op">,</span>              <span class="co">// 절점당 자유도 수</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">// ── 강성 행렬 계산 ──</span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stiffness</span>(nodes<span class="op">,</span> mat<span class="op">,</span> prop) {</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">// nodes: [{x, y}, ...], mat: {E, nu, rho}, prop: {A, t, Iz, ...}</span></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 반환: { esm: number[][] }  (nDof × nDof 행렬, nDof = nNodes × dofNode)</span></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> esm <span class="op">=</span> <span class="co">/* ... 가우스 적분 등 ... */</span><span class="op">;</span></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> { esm }<span class="op">;</span></span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span></span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>  <span class="co">// ── (선택) 응력 계산 ──</span></span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stress</span>(nodes<span class="op">,</span> mat<span class="op">,</span> prop<span class="op">,</span> disp) {</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>    <span class="co">// disp: [u1, v1, u2, v2, ...] (전역 변위 벡터에서 추출된 절점 변위)</span></span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 반환: [{ x, y, sxx, syy, txy, smx, smn, mises }, ...]</span></span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> []<span class="op">;</span></span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div>
+<h4 id="category-분류표">category 분류표</h4>
+<table>
+<thead>
+<tr>
+<th>category</th>
+<th>dofNode</th>
+<th>절점당 자유도</th>
+<th>사용 용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>solid2d</code></td>
+<td>2</td>
+<td>u, v (수평·수직)</td>
+<td>2D 평면응력/변형률</td>
+</tr>
+<tr>
+<td><code>bar1d</code></td>
+<td>2</td>
+<td>u, v (전체좌표)</td>
+<td>2D 봉/트러스</td>
+</tr>
+<tr>
+<td><code>beam2d_tim</code></td>
+<td>3</td>
+<td>u, v, θ</td>
+<td>2D 티모셴코 보</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="디버그-모드-행렬단면력-뷰어">12. 디버그 모드 — 행렬·단면력
+뷰어</h2>
+<p>디버그 모드는 학생들이 <strong>작성한 요소의 강성 행렬이 올바른지
+수치로 확인</strong>하고, 해석 결과(변위·절점력·전체 강성 행렬)를
+검증하기 위한 도구입니다.</p>
+<h3 id="디버그-모드-활성화">12.1 디버그 모드 활성화</h3>
+<ol type="1">
+<li>툴바의 <strong>디버그</strong> 버튼 클릭 → 버튼 색상이 녹색으로
+변하고 “ON” 표시</li>
+<li><strong>▶ Run Analysis</strong> 실행</li>
+<li>해석 완료 시 <strong>디버그 뷰어가 자동으로 열림</strong></li>
+</ol>
+<blockquote>
+<p>디버그 버튼을 다시 클릭하면 비활성화됩니다.</p>
+<p><strong>행렬 보기</strong> 버튼: 디버그 모드 상태와 무관하게, 마지막
+해석 데이터를 바탕으로 뷰어를 수동으로 열 수 있습니다.</p>
+</blockquote>
+<h3 id="뷰어-탭-구성">12.2 뷰어 탭 구성</h3>
+<table>
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr>
+<th>탭</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>요약</strong></td>
+<td>전체 자유도 수(nDOF), 자유 자유도(nFree), 구속 자유도(nConst), 요소
+수, 전체 K 저장 여부</td>
+</tr>
+<tr>
+<td><strong>K_e 강성행렬</strong></td>
+<td>선택한 요소의 강성 행렬 — n×n 스크롤 테이블, 대각 성분 강조,
+EFT(전역 자유도 번호) 표시</td>
+</tr>
+<tr>
+<td><strong>u_e 절점변위</strong></td>
+<td>선택한 요소의 절점별 변위 — 로컬 DOF / 전역 DOF / 절점 ID / 방향 /
+값</td>
+</tr>
+<tr>
+<td><strong>f_e 절점력</strong></td>
+<td>f_e = K_e × u_e — 평형 검증용 요소 절점력</td>
+</tr>
+<tr>
+<td><strong>전체 K</strong></td>
+<td>조립된 전역 강성 행렬 (nDOF ≤ 200인 모델에서만 저장·표시)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="요소-선택">12.3 요소 선택</h3>
+<p>뷰어 상단의 <strong>요소 선택</strong> 드롭다운에서 원하는 요소를
+선택하면 <strong>K_e / u_e / f_e</strong> 탭의 데이터가 자동
+갱신됩니다.</p>
+<pre><code>드롭다운: E3 · TIMBEAM2D_2N · 2절점 (6DOF)
+              ↑요소ID  ↑유형         ↑DOF수</code></pre>
+<h3 id="강성-행렬-표-보는-법">12.4 강성 행렬 표 보는 법</h3>
+<pre><code>       i\j    0      1      2      3
+        0  [K00]  [K01]  [K02]  [K03]   ← 행 i=0 (전역 DOF 번호)
+        1  [K10]  [K11]  ...</code></pre>
+<ul>
+<li><strong>파란색 굵은 셀</strong>: 대각 성분 (K_ii)</li>
+<li><strong>회색 희미한 셀</strong>: 0에 가까운 값 (&lt; 1e-14)</li>
+<li>행·열 헤더에 표시된 번호: EFT (Element Freedom Table) — 전역 강성
+행렬 내 위치</li>
+</ul>
+<h3 id="평형-검증-f_e-탭">12.5 평형 검증 (f_e 탭)</h3>
+<p><code>f_e = K_e × u_e</code> 의 값이 물리적으로 의미 있는 범위에
+있는지 확인합니다.</p>
+<ul>
+<li>내력의 합이 0에 가까울수록 올바른 평형 조건</li>
+<li>특정 DOF의 절점력이 비정상적으로 크면 강성 행렬 오류 가능성</li>
+</ul>
+<h3 id="전체-k-저장-제한">12.6 전체 K 저장 제한</h3>
+<table>
+<thead>
+<tr>
+<th>nDOF</th>
+<th>전체 K 저장</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≤ 200</td>
+<td>✅ 저장·표시</td>
+</tr>
+<tr>
+<td>&gt; 200</td>
+<td>⚠️ 메모리 절약을 위해 생략</td>
+</tr>
+</tbody>
+</table>
+<p>소규모 테스트 모델(몇 개 요소)에서 확인하는 것을 권장합니다.</p>
+<h3 id="디버그-활용-예시">12.7 디버그 활용 예시</h3>
+<p><strong>학생 요소 검증 절차:</strong></p>
+<ol type="1">
+<li>요소 코드 에디터에서 새 요소 등록</li>
+<li>해당 요소 하나만 포함한 단순 모델 생성 (예: 양단 고정 봉)</li>
+<li>디버그 모드 ON → Run Analysis</li>
+<li><strong>K_e 탭</strong>: 강성 행렬이 대칭인지, 대각 성분이 양수인지
+확인</li>
+<li><strong>u_e 탭</strong>: 구속 절점의 변위가 0인지 확인</li>
+<li><strong>f_e 탭</strong>: 절점력이 적용 하중과 일치하는지 확인</li>
+<li><strong>전체 K 탭</strong>: 구속 자유도 행·열이 제대로 처리됐는지
+확인</li>
+</ol>
+<hr />
+<h2 id="fepselementcore-api-레퍼런스">13. FepsElementCore API
+레퍼런스</h2>
+<p><code>FepsElementCore</code> 는 학생 요소 코드에서 사용할 수 있는
+유틸리티 함수 모음입니다.</p>
+<h3 id="수치-적분">13.1 수치 적분</h3>
+<h4 id="gausspts2dn-2d-가우스-포인트"><code>gaussPts2D(n)</code> — 2D
+가우스 포인트</h4>
+<div class="sourceCode" id="cb30"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> { pts<span class="op">,</span> wts } <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">gaussPts2D</span>(<span class="dv">2</span>)<span class="op">;</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="co">// pts: [[ξ₁,η₁], [ξ₂,η₂], ...] (n² 포인트)</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co">// wts: [w₁, w₂, ...]           (가중값)</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>인수 n</th>
+<th>포인트 수</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>1 (1×1 = 1개)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>4 (2×2)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>9 (3×3)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="gausspts1dn-1d-가우스-포인트"><code>gaussPts1D(n)</code> — 1D
+가우스 포인트</h4>
+<div class="sourceCode" id="cb31"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> { pts<span class="op">,</span> wts } <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">gaussPts1D</span>(<span class="dv">3</span>)<span class="op">;</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="co">// 1D 구간 [-1, 1] 에서 n개 포인트</span></span></code></pre></div>
+<h3 id="형상함수">13.2 형상함수</h3>
+<h4
+id="shapequad4xi-eta-quad4-형상함수"><code>shapeQuad4(xi, eta)</code> —
+QUAD4 형상함수</h4>
+<div class="sourceCode" id="cb32"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> { N<span class="op">,</span> dN } <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">shapeQuad4</span>(xi<span class="op">,</span> eta)<span class="op">;</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="co">// N:  [N1, N2, N3, N4]         — 형상함수 값</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="co">// dN: [[dN1/dξ, dN1/dη], ...]  — ξ·η 편미분</span></span></code></pre></div>
+<h4
+id="shapetrig3xi-eta-trig3-형상함수"><code>shapeTrig3(xi, eta)</code> —
+TRIG3 형상함수</h4>
+<div class="sourceCode" id="cb33"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> { N<span class="op">,</span> dN } <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">shapeTrig3</span>(xi<span class="op">,</span> eta)<span class="op">;</span></span></code></pre></div>
+<h3 id="야코비안-및-변환">13.3 야코비안 및 변환</h3>
+<h4
+id="jacobian2ddn-coords-2d-야코비안"><code>jacobian2D(dN, coords)</code>
+— 2D 야코비안</h4>
+<div class="sourceCode" id="cb34"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> { J<span class="op">,</span> detJ<span class="op">,</span> invJ } <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">jacobian2D</span>(dN<span class="op">,</span> coords)<span class="op">;</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="co">// dN:    [[dN1/dξ, dN1/dη], ...] — 형상함수 자연좌표 미분</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="co">// coords: [[x1,y1], [x2,y2], ...] — 절점 물리 좌표</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="co">// 반환:</span></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="co">//   J:    2×2 야코비안 행렬</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="co">//   detJ: det(J)</span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="co">//   invJ: 역행렬 J⁻¹</span></span></code></pre></div>
+<h4
+id="bmatrix2ddn_phys-n-2d-b-행렬-변형률-변위"><code>bMatrix2D(dN_phys, n)</code>
+— 2D B 행렬 (변형률-변위)</h4>
+<div class="sourceCode" id="cb35"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> B <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">bMatrix2D</span>(dN_phys<span class="op">,</span> n)<span class="op">;</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="co">// dN_phys: [[dNi/dx, dNi/dy], ...] — 물리좌표 미분</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="co">// n: 절점 수</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="co">// 반환: 3×(2n) 행렬 [ε_xx, ε_yy, γ_xy]ᵀ = B × d</span></span></code></pre></div>
+<h4
+id="constitutive2de-nu-type-구성방정식"><code>constitutive2D(E, nu, type)</code>
+— 구성방정식</h4>
+<div class="sourceCode" id="cb36"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> D <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">constitutive2D</span>(<span class="cn">E</span><span class="op">,</span> nu<span class="op">,</span> <span class="st">&#39;planeStress&#39;</span>)<span class="op">;</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="co">// type: &#39;planeStress&#39; | &#39;planeStrain&#39;</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="co">// 반환: 3×3 탄성 행렬 D</span></span></code></pre></div>
+<h3 id="보-요소-유틸리티">13.4 보 요소 유틸리티</h3>
+<h4
+id="beamrotate2ddx-dy-l-nnodes-좌표-변환-행렬"><code>beamRotate2D(dx, dy, L, nNodes)</code>
+— 좌표 변환 행렬</h4>
+<div class="sourceCode" id="cb37"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> T <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">beamRotate2D</span>(dx<span class="op">,</span> dy<span class="op">,</span> L<span class="op">,</span> nNodes)<span class="op">;</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="co">// dx, dy: 보 요소 축 방향 성분 (끝점 - 시작점)</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="co">// L:      보 요소 길이</span></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="co">// nNodes: 절점 수 (2 또는 3)</span></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="co">// 반환: (3·nNodes) × (3·nNodes) 회전 변환 행렬 T</span></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a><span class="co">//   전역→국소 변환: u_local = T × u_global</span></span></code></pre></div>
+<h3 id="행렬-유틸리티">13.5 행렬 유틸리티</h3>
+<h4 id="matmula-b-행렬-곱"><code>matMul(A, B)</code> — 행렬 곱</h4>
+<div class="sourceCode" id="cb38"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> C <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">matMul</span>(A<span class="op">,</span> B)<span class="op">;</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="co">// A: m×k, B: k×n → C: m×n</span></span></code></pre></div>
+<h4 id="mattransposea-전치"><code>matTranspose(A)</code> — 전치</h4>
+<div class="sourceCode" id="cb39"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> At <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">matTranspose</span>(A)<span class="op">;</span></span></code></pre></div>
+<h4 id="matscalea-s-스칼라-곱"><code>matScale(A, s)</code> — 스칼라
+곱</h4>
+<div class="sourceCode" id="cb40"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> B <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">matScale</span>(A<span class="op">,</span> <span class="fl">2.0</span>)<span class="op">;</span></span></code></pre></div>
+<h3 id="완전한-고체-요소-예시-quad4-재현">13.6 완전한 고체 요소 예시
+(QUAD4 재현)</h3>
+<div class="sourceCode" id="cb41"><pre
+class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>FepsElementRegistry<span class="op">.</span><span class="fu">register</span>({</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">name</span>    <span class="op">:</span> <span class="st">&#39;MY_QUAD4&#39;</span><span class="op">,</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">category</span><span class="op">:</span> <span class="st">&#39;solid2d&#39;</span><span class="op">,</span></span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">nNodes</span>  <span class="op">:</span> <span class="dv">4</span><span class="op">,</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">dofNode</span> <span class="op">:</span> <span class="dv">2</span><span class="op">,</span></span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stiffness</span>(nodes<span class="op">,</span> mat<span class="op">,</span> prop) {</span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> { <span class="cn">E</span><span class="op">,</span> nu } <span class="op">=</span> mat<span class="op">;</span></span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> t <span class="op">=</span> prop<span class="op">.</span><span class="at">t</span> <span class="op">||</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> D <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">constitutive2D</span>(<span class="cn">E</span><span class="op">,</span> nu<span class="op">,</span> <span class="st">&#39;planeStress&#39;</span>)<span class="op">;</span></span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> { pts<span class="op">,</span> wts } <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">gaussPts2D</span>(<span class="dv">2</span>)<span class="op">;</span></span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> coords <span class="op">=</span> nodes<span class="op">.</span><span class="fu">map</span>(n <span class="kw">=&gt;</span> [n<span class="op">.</span><span class="at">x</span><span class="op">,</span> n<span class="op">.</span><span class="at">y</span>])<span class="op">;</span></span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> nDof <span class="op">=</span> <span class="dv">8</span><span class="op">;</span></span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> esm <span class="op">=</span> <span class="bu">Array</span><span class="op">.</span><span class="fu">from</span>({ <span class="dt">length</span><span class="op">:</span> nDof }<span class="op">,</span> () <span class="kw">=&gt;</span> <span class="kw">new</span> <span class="bu">Array</span>(nDof)<span class="op">.</span><span class="fu">fill</span>(<span class="dv">0</span>))<span class="op">;</span></span>
+<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="kw">let</span> g <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> g <span class="op">&lt;</span> pts<span class="op">.</span><span class="at">length</span><span class="op">;</span> g<span class="op">++</span>) {</span>
+<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a>      <span class="kw">const</span> [xi<span class="op">,</span> eta] <span class="op">=</span> pts[g]<span class="op">;</span></span>
+<span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a>      <span class="kw">const</span> { dN } <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">shapeQuad4</span>(xi<span class="op">,</span> eta)<span class="op">;</span></span>
+<span id="cb41-19"><a href="#cb41-19" aria-hidden="true" tabindex="-1"></a>      <span class="kw">const</span> { detJ<span class="op">,</span> invJ } <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">jacobian2D</span>(dN<span class="op">,</span> coords)<span class="op">;</span></span>
+<span id="cb41-20"><a href="#cb41-20" aria-hidden="true" tabindex="-1"></a>      <span class="co">// 물리좌표 미분</span></span>
+<span id="cb41-21"><a href="#cb41-21" aria-hidden="true" tabindex="-1"></a>      <span class="kw">const</span> dN_phys <span class="op">=</span> dN<span class="op">.</span><span class="fu">map</span>(([dxi<span class="op">,</span> deta]) <span class="kw">=&gt;</span> [</span>
+<span id="cb41-22"><a href="#cb41-22" aria-hidden="true" tabindex="-1"></a>        invJ[<span class="dv">0</span>][<span class="dv">0</span>]<span class="op">*</span>dxi <span class="op">+</span> invJ[<span class="dv">0</span>][<span class="dv">1</span>]<span class="op">*</span>deta<span class="op">,</span></span>
+<span id="cb41-23"><a href="#cb41-23" aria-hidden="true" tabindex="-1"></a>        invJ[<span class="dv">1</span>][<span class="dv">0</span>]<span class="op">*</span>dxi <span class="op">+</span> invJ[<span class="dv">1</span>][<span class="dv">1</span>]<span class="op">*</span>deta</span>
+<span id="cb41-24"><a href="#cb41-24" aria-hidden="true" tabindex="-1"></a>      ])<span class="op">;</span></span>
+<span id="cb41-25"><a href="#cb41-25" aria-hidden="true" tabindex="-1"></a>      <span class="kw">const</span> B <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">bMatrix2D</span>(dN_phys<span class="op">,</span> <span class="dv">4</span>)<span class="op">;</span></span>
+<span id="cb41-26"><a href="#cb41-26" aria-hidden="true" tabindex="-1"></a>      <span class="kw">const</span> BtDB <span class="op">=</span> FepsElementCore<span class="op">.</span><span class="fu">matMul</span>(</span>
+<span id="cb41-27"><a href="#cb41-27" aria-hidden="true" tabindex="-1"></a>        FepsElementCore<span class="op">.</span><span class="fu">matTranspose</span>(B)<span class="op">,</span></span>
+<span id="cb41-28"><a href="#cb41-28" aria-hidden="true" tabindex="-1"></a>        FepsElementCore<span class="op">.</span><span class="fu">matMul</span>(D<span class="op">,</span> B)</span>
+<span id="cb41-29"><a href="#cb41-29" aria-hidden="true" tabindex="-1"></a>      )<span class="op">;</span></span>
+<span id="cb41-30"><a href="#cb41-30" aria-hidden="true" tabindex="-1"></a>      <span class="kw">const</span> w <span class="op">=</span> wts[g] <span class="op">*</span> detJ <span class="op">*</span> t<span class="op">;</span></span>
+<span id="cb41-31"><a href="#cb41-31" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> (<span class="kw">let</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> nDof<span class="op">;</span> i<span class="op">++</span>)</span>
+<span id="cb41-32"><a href="#cb41-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> (<span class="kw">let</span> j <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> j <span class="op">&lt;</span> nDof<span class="op">;</span> j<span class="op">++</span>)</span>
+<span id="cb41-33"><a href="#cb41-33" aria-hidden="true" tabindex="-1"></a>          esm[i][j] <span class="op">+=</span> BtDB[i][j] <span class="op">*</span> w<span class="op">;</span></span>
+<span id="cb41-34"><a href="#cb41-34" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb41-35"><a href="#cb41-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> { esm }<span class="op">;</span></span>
+<span id="cb41-36"><a href="#cb41-36" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb41-37"><a href="#cb41-37" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="부록-a-파일-구조">부록 A: 파일 구조</h2>
+<pre><code>FEPS-web/
+├── index.html                  — 메인 UI (툴바, 탭, 패널, 모달, 캔버스)
+├── css/
+│   └── style.css               — 전체 스타일시트
+├── js/
+│   ├── parser.js               — .inp 파일 파서
+│   ├── solver.js               — 브라우저 내장 FEA 솔버
+│   ├── renderer.js             — Canvas 렌더러 (전처리 + 후처리)
+│   ├── mesher.js               — 자동 메시 생성기 (Earcut 기반)
+│   ├── main.js                 — 앱 컨트롤러 / 이벤트 연결
+│   ├── element-registry.js     — FepsElementRegistry: 커스텀 요소 등록 API
+│   ├── element-core.js         — FepsElementCore: 형상함수·야코비안·B행렬 유틸
+│   ├── element-editor-ui.js    — 요소 코드 에디터 UI 로직
+│   ├── element-debug.js        — FepsDebug: 해석 데이터 수집기 (K_e, 전역 K 등)
+│   ├── element-debug-ui.js     — FepsDebugUI: 행렬 뷰어 모달 UI
+│   ├── help-ui.js              — 사용자 설명서 뷰어 (marked.js + TOC 자동 생성)
+│   └── elements/               — 제공 예시 학생 요소
+│       ├── quad5.js            — QUAD5 (5절점 버블 사각형)
+│       ├── quad8.js            — QUAD8 (8절점 세렌디피티)
+│       ├── quad9.js            — QUAD9 (9절점 라그랑지)
+│       ├── trig6.js            — TRIG6 (6절점 삼각형)
+│       ├── bar2_3N.js          — BAR2_3N (3절점 봉)
+│       ├── TimBeam2D_2N.js     — TIMBEAM2D_2N (2절점 티모셴코)
+│       └── TimBeam2D_3N.js     — TIMBEAM2D_3N (3절점 티모셴코)
+├── examples/                   — 튜토리얼 예제 .inp 파일 모음
+│   ├── README.md               — 예제 설명 (이론해, 실험 방법)
+│   ├── ex01-truss-simple.inp   — 단순 2D 트러스 (BAR2)
+│   ├── ex02-cantilever-beam.inp — 외팔보 이론해 검증 (BEAM2D)
+│   ├── ex03-portal-frame.inp   — 포털 라멘 + 분포하중 (BEAM2D)
+│   ├── ex04-solid-plate-quad4.inp — 2D 고체 캔틸레버 플레이트 (QUAD4)
+│   └── ex05-solid-plate-trig3.inp — 동일 형상 TRIG3 메시 비교
+├── FEPS-SDD.md                 — 소프트웨어 설계 문서
+├── FEPS-UserManual.md          — 본 사용자 설명서
+└── FEPS-Csharp/                — C# 참조 구현 (Avalonia 데스크탑용)
+    └── Examples/               — C# 예제 입력 파일 모음</code></pre>
+<hr />
+<h2 id="부록-b-개발-이력-주요-변경-사항">부록 B: 개발 이력 (주요 변경
+사항)</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>버전</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>초기</td>
+<td>BAR2, BEAM2D, QUAD4, TRIG3 기본 해석 기능</td>
+</tr>
+<tr>
+<td>+3D</td>
+<td>BAR3D, BEAM3D 요소 추가, 3D 등각 투시 렌더링</td>
+</tr>
+<tr>
+<td>+Mesh</td>
+<td>Earcut 기반 자동 메시 생성, TRIG6/QUAD8 지원</td>
+</tr>
+<tr>
+<td>+Diag</td>
+<td>SFD/BMD/AFD 단면력 다이어그램 렌더러 추가</td>
+</tr>
+<tr>
+<td>부호 수정</td>
+<td>SFD/BMD/AFD 부호 규약 수정 — 절점력에서 단면력으로 올바른 변환</td>
+</tr>
+<tr>
+<td>Contour</td>
+<td>보/트러스 전용 컬러 컨투어 (sxx=축력, syy=모멘트) 추가</td>
+</tr>
+<tr>
+<td>UI 개선</td>
+<td>BC 심볼 크기 구조물에 비례 자동 조정, 반력 레이블 크기 및 겹침
+해결</td>
+</tr>
+<tr>
+<td>레이블 수정</td>
+<td>2D 모멘트 반력 레이블 <code>Rz → Mz</code> 수정</td>
+</tr>
+<tr>
+<td>폰트 조정</td>
+<td>다이어그램·반력·하중·절점·요소 레이블 폰트 크기 최적화</td>
+</tr>
+<tr>
+<td>요소 플러그인</td>
+<td>FepsElementRegistry + FepsElementCore API 추가 — JavaScript로 커스텀
+요소 작성 가능</td>
+</tr>
+<tr>
+<td>코드 에디터</td>
+<td>브라우저 내장 요소 코드 에디터, localStorage 영구 저장, .js 파일
+내보내기/불러오기</td>
+</tr>
+<tr>
+<td>학생 요소</td>
+<td>QUAD5/8/9, TRIG6, BAR2_3N, TIMBEAM2D_2N/3N 기본 제공 예시 요소
+추가</td>
+</tr>
+<tr>
+<td>디버그 모드</td>
+<td>FepsDebug (K_e·전역K 수집) + FepsDebugUI (행렬 뷰어 모달) 추가</td>
+</tr>
+<tr>
+<td>전처리/후처리 확장</td>
+<td>TIMBEAM, BAR2_3N 요소 변형 형상, 컬러 컨투어, 단면력 다이어그램
+지원</td>
+</tr>
+<tr>
+<td>재료·단면 Edit-in-Place</td>
+<td>재료/단면 목록에 ✎ 버튼 추가 — 값 수정 후 Update 클릭으로 in-place
+업데이트. 기존에는 삭제 후 재추가해야 했던 불편 해소.</td>
+</tr>
+<tr>
+<td>자동 스케일 잠금</td>
+<td>재해석(재료 변경 후 Run Analysis) 시 변형 스케일 고정 — 실제 변위
+변화가 시각적으로 정확히 반영됨. 2D 고체 모델의 특성 길이를 바운딩 박스
+대각선으로 수정.</td>
+</tr>
+<tr>
+<td>수동 스케일 입력</td>
+<td>Scale / Diagram Scale 슬라이더 옆에 숫자 직접 입력 필드 추가.
+슬라이더 최댓값(1000/500) 초과 배율도 입력 가능. 양방향 동기화.</td>
+</tr>
+<tr>
+<td>단면 A 툴팁</td>
+<td>단면 <code>A</code> 입력 필드에 “2D 고체 요소(QUAD4, TRIG3)에서는
+사용되지 않음” 툴팁 추가</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<hr />
+<p><em>FEPS-web v0.1 — 교육 및 연구 목적의 유한요소해석 프로그램</em>
+<em>개발: 권민호 · 경상국립대학교 토목공학과 · kwonm@gnu.ac.kr</em></p>

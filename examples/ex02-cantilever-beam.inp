@@ -1,0 +1,27 @@
+# FEPS Example 02: Cantilever Beam (BEAM2D)
+# Structure: Single BEAM2D element, length = 5 m
+# Units: kN, m  (E in MPa = kN/m^2 * 1000 ... use consistent units)
+# Units here: kN, m => E [kN/m^2], F [kN], L [m]
+#
+# Material: Steel-like E=2e8 kN/m^2 (= 200 GPa), nu=0.3
+# Section : 200mm x 200mm square => A=0.04 m^2, Iz=1.333e-4 m^4
+# Load    : Node 2 (free end) => Fy = -10 kN
+#
+# Theory (Euler-Bernoulli):
+#   delta_tip = P*L^3 / (3*E*I)
+#             = 10 * 125 / (3 * 2e8 * 1.333e-4)
+#             = 1250 / 79980
+#             ≈ 0.01563 m  = 15.63 mm
+#
+2 3 2
+1   0.0   0.0
+2   5.0   0.0
+1
+1  2.0e8  0.3
+1
+1  0.04  1.0  1.333e-4  0.0  0.0  0.0
+1
+BEAM2D  1  1  1  1  2  0  0  0
+2
+1  1  1  1   0.0   0.0   0.0   0.0   0.0   0.0
+2  0  0  0   0.0 -10.0   0.0   0.0   0.0   0.0

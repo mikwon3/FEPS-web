@@ -1,0 +1,75 @@
+**********************************************************************
+*     FEPS (Finite Element Analysis Program for General Structure)   *
+*     Author: Minho Kwon, Sept. 2025 implemented as Python           *
+*             Ported to C# .NET 10                                  *
+*             for graduate course in Dept. of Civil Engineering      *
+*             Gyeongsang National University, Jinju, Korea.          *
+**********************************************************************
+
+
+
+ Input file name: Final-prob1.inp
+
+
+  === Node Definition Data ===
+  Node     x-coord     y-coord
+     1       0.000       0.000
+     2       0.000       3.000
+     3       3.000       3.000
+
+  === Material Definition Data ===
+   Code  El.modulus  Pois.ratio
+    1     2.000e+08      0.300
+
+  ==== Property Definition Data ====
+   Code    Bar-area  Plate-thickness       Alpha        Iyy         Izz           J
+     1    1.000e+07    1.000e+00        0.000e+00                8.000e-05
+     2    2.000e-03    1.000e+00        0.000e+00                8.000e-05
+
+  ====== Element Definition Data ======
+  Type      Number   Mcode Pcode       Node-list ....
+  BEAM2D       1       1     1      1      2
+  BEAM2D       2       1     2      2      3
+
+  Type      Number                      Element Loads
+                           wx          wy          wz     Temperature
+  BEAM2D      1        0.000e+00   0.000e+00               0.000e+00
+  BEAM2D      2        0.000e+00   -7.500e+01               0.000e+00
+
+  ========= Nodal Boundary Conditions and Nodal Load Data =======
+  1. Prescribed Nodal Loads
+  Node  x-BCtag y-BCtag th-BCtag       Prescribed
+                                  Fx         Fy        Mzz
+    1    1.000    1.000    1.000  0.000e+00  0.000e+00  0.000e+00
+    2    0.000    0.000    0.000  0.000e+00  0.000e+00  0.000e+00
+    3    1.000    1.000    0.000  0.000e+00  0.000e+00  0.000e+00
+
+  2. Prescribed Displacement
+  Node  x-BCtag y-BCtag th-BCtag       Prescribed
+                                  Ux         Uy        Rzz
+    1   1.000    1.000    1.000   0.000e+00  0.000e+00  0.000e+00
+    2   0.000    0.000    0.000   0.000e+00  0.000e+00  0.000e+00
+    3   1.000    1.000    0.000   0.000e+00  0.000e+00  0.000e+00
+
+ Eigenvalues of Kff - master stiffness matrix:
+             1             2             3             4
+   1     1.678e+04     4.606e+04     1.416e+05     6.667e+14
+
+  --------- Computed  Node Displacements  -------
+  Node   x-coord    y-coord     x-displ      y-displ      Angle
+     1   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00
+     2   0.000e+00   3.000e+00  -1.755e-04   1.925e-13   2.310e-03
+     3   3.000e+00   3.000e+00   0.000e+00   0.000e+00  -3.792e-03
+  ------------ Computed Node Forces -------------
+  Node   x-coord    y-coord    x-force      y-force      Moment
+     1   0.000e+00   0.000e+00  -2.339e+01  -1.283e+02   2.277e+01
+     2   0.000e+00   3.000e+00   0.000e+00   0.000e+00   0.000e+00
+     3   3.000e+00   3.000e+00   2.339e+01   1.283e+02   0.000e+00
+
+ --------- Beam Section Forces Information---------
+ Type   Number  Node      Force-Local_x   Force-Local_y     Moment
+ BEAM2D      1      1      -1.283e+02       2.339e+01       2.277e+01
+                    2       1.283e+02      -2.339e+01       4.741e+01
+ BEAM2D      2      2      -2.339e+01       9.670e+01       6.509e+01
+                    3       2.339e+01       1.283e+02      -1.125e+02
+

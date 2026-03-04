@@ -1,0 +1,50 @@
+<VTKFile type="UnstructuredGrid" version="1.0" byte_order="LittleEndian" header_type="UInt64"> 
+  <UnstructuredGrid> 
+    <FieldData> 
+      <DataArray type="Float64" Name="TimeValue" NumberOfTuples="1" format="ascii"> 
+        1 
+      </DataArray> 
+    </FieldData> 
+ <Piece NumberOfPoints="   4" NumberOfCells="   3"> 
+      <PointData Vectors="Nodal Vectors"> 
+        <DataArray type="Float32" Name="Displacement" NumberOfComponents="3" format="ascii" > 
+             0.000e+00    0.000e+00    0.000e+00 
+             3.258e-01   -6.662e-20   -2.805e-01 
+             3.258e-01   -5.123e-01   -1.250e-20 
+             0.000e+00    0.000e+00    0.000e+00 
+        </DataArray> 
+        <DataArray type="Float32" Name="Forces" NumberOfComponents="3" format="ascii"> 
+             3.357e-01    1.420e-14    0.000e+00 
+             0.000e+00    0.000e+00    0.000e+00 
+             0.000e+00   -2.000e+01    0.000e+00 
+            -3.357e-01    2.000e+01    5.329e-15 
+        </DataArray> 
+        <DataArray type="Float32" Name="Moments" NumberOfComponents="3" format="ascii"> 
+             1.915e+01   6.715e-01   0.000e+00 
+             0.000e+00   0.000e+00   0.000e+00 
+             6.667e+00   0.000e+00   0.000e+00 
+            -6.667e+00   0.000e+00   0.000e+00 
+        </DataArray> 
+      </PointData> 
+      <Points> 
+        <DataArray type="Float32" Name="Points" NumberOfComponents="3" format="ascii"> 
+             0.000e+00    0.000e+00    0.000e+00 
+             0.000e+00    4.000e+00    0.000e+00 
+             4.000e+00    4.000e+00    0.000e+00 
+             4.000e+00    4.000e+00    2.000e+00 
+        </DataArray> 
+      </Points> 
+      <Cells> 
+        <DataArray type="Int64" Name="connectivity" format="ascii"> 
+                0     1     1     2     2     3
+                   </DataArray> 
+        <DataArray type="Int64" Name="offsets" format="ascii"> 
+                          2               4               6
+        </DataArray> 
+        <DataArray type="UInt8" Name="types" format="ascii"> 
+             3  3  3
+        </DataArray> 
+      </Cells> 
+    </Piece> 
+  </UnstructuredGrid> 
+</VTKFile> 

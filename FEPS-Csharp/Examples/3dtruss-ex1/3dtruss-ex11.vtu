@@ -1,0 +1,128 @@
+<VTKFile type="UnstructuredGrid" version="1.0" byte_order="LittleEndian" header_type="UInt64"> 
+  <UnstructuredGrid> 
+    <FieldData> 
+      <DataArray type="Float64" Name="TimeValue" NumberOfTuples="1" format="ascii"> 
+        1 
+      </DataArray> 
+    </FieldData> 
+ <Piece NumberOfPoints="  12" NumberOfCells="  21"> 
+      <PointData Vectors="Nodal Vectors"> 
+        <DataArray type="Float32" Name="Displacement" NumberOfComponents="3" format="ascii" > 
+             0.000e+00    0.000e+00    0.000e+00 
+             8.095e-01   -1.776e+00    0.000e+00 
+             2.800e-01   -1.792e+00    0.000e+00 
+             8.990e-01   -2.292e+00    0.000e+00 
+             5.600e-01   -2.317e+00    0.000e+00 
+             8.475e-01   -2.386e+00    0.000e+00 
+             8.475e-01   -2.422e+00    0.000e+00 
+             7.960e-01   -2.292e+00    0.000e+00 
+             1.135e+00   -2.317e+00    0.000e+00 
+             8.855e-01   -1.776e+00    0.000e+00 
+             1.415e+00   -1.792e+00    0.000e+00 
+             1.695e+00    0.000e+00    0.000e+00 
+        </DataArray> 
+        <DataArray type="Float32" Name="Forces" NumberOfComponents="3" format="ascii"> 
+             3.695e-13    2.800e+01    0.000e+00 
+             0.000e+00    0.000e+00    0.000e+00 
+             0.000e+00   -1.000e+01    0.000e+00 
+             0.000e+00    0.000e+00    0.000e+00 
+             0.000e+00   -1.000e+01    0.000e+00 
+             0.000e+00    0.000e+00    0.000e+00 
+             0.000e+00   -1.600e+01    0.000e+00 
+             0.000e+00    0.000e+00    0.000e+00 
+             0.000e+00   -1.000e+01    0.000e+00 
+             0.000e+00    0.000e+00    0.000e+00 
+             0.000e+00   -1.000e+01    0.000e+00 
+             0.000e+00    2.800e+01    0.000e+00 
+        </DataArray> 
+      </PointData> 
+      <CellData Vectors="Element Vectors"> 
+        <DataArray type="Float32" Name="Member Force" NumberOfComponents="3" format="ascii"> 
+            -1.592e+03   0.000e+0    0.000e+00 
+             5.600e+02   0.000e+0    0.000e+00 
+            -5.144e+03   0.000e+0    0.000e+00 
+             4.584e+03   0.000e+0    0.000e+00 
+             1.695e+03   0.000e+0    0.000e+00 
+            -1.695e+03   0.000e+0    0.000e+00 
+             3.130e+03   0.000e+0    0.000e+00 
+            -1.701e+04   0.000e+0    0.000e+00 
+             1.856e+04   0.000e+0    0.000e+00 
+             8.772e+03   0.000e+0    0.000e+00 
+            -3.487e+04   0.000e+0    0.000e+00 
+             2.134e+04   0.000e+0    0.000e+00 
+            -2.429e+03   0.000e+0    0.000e+00 
+             5.377e+03   0.000e+0    0.000e+00 
+             2.697e+03   0.000e+0    0.000e+00 
+            -9.492e+03   0.000e+0    0.000e+00 
+             7.266e+03   0.000e+0    0.000e+00 
+             1.052e+03   0.000e+0    0.000e+00 
+            -4.032e+02   0.000e+0    0.000e+00 
+             7.798e+02   0.000e+0    0.000e+00 
+            -2.513e+03   0.000e+0    0.000e+00 
+        </DataArray> 
+        <DataArray type="Float32" Name="Member Stress" NumberOfComponents="3" format="ascii"> 
+             -7.960e+02   0.000e+00   0.000e+00 
+              2.800e+02   0.000e+00   0.000e+00 
+             -2.572e+03   0.000e+00   0.000e+00 
+              2.292e+03   0.000e+00   0.000e+00 
+              8.475e+02   0.000e+00   0.000e+00 
+             -8.475e+02   0.000e+00   0.000e+00 
+              3.130e+02   0.000e+00   0.000e+00 
+             -1.701e+03   0.000e+00   0.000e+00 
+              1.856e+03   0.000e+00   0.000e+00 
+              8.772e+02   0.000e+00   0.000e+00 
+             -3.487e+03   0.000e+00   0.000e+00 
+              2.134e+03   0.000e+00   0.000e+00 
+             -8.095e+02   0.000e+00   0.000e+00 
+              1.792e+03   0.000e+00   0.000e+00 
+              8.990e+02   0.000e+00   0.000e+00 
+             -3.164e+03   0.000e+00   0.000e+00 
+              2.422e+03   0.000e+00   0.000e+00 
+              1.052e+03   0.000e+00   0.000e+00 
+             -4.032e+02   0.000e+00   0.000e+00 
+              7.798e+02   0.000e+00   0.000e+00 
+             -2.513e+03   0.000e+00   0.000e+00 
+        </DataArray> 
+      </CellData> 
+      <Points> 
+        <DataArray type="Float32" Name="Points" NumberOfComponents="3" format="ascii"> 
+             0.000e+00    0.000e+00    0.000e+00 
+             1.000e+01    5.000e+00    0.000e+00 
+             1.000e+01    0.000e+00    0.000e+00 
+             2.000e+01    8.000e+00    0.000e+00 
+             2.000e+01    0.000e+00    0.000e+00 
+             3.000e+01    9.000e+00    0.000e+00 
+             3.000e+01    0.000e+00    0.000e+00 
+             4.000e+01    8.000e+00    0.000e+00 
+             4.000e+01    0.000e+00    0.000e+00 
+             5.000e+01    5.000e+00    0.000e+00 
+             5.000e+01    0.000e+00    0.000e+00 
+             6.000e+01    0.000e+00    0.000e+00 
+        </DataArray> 
+      </Points> 
+      <Cells> 
+        <DataArray type="Int64" Name="connectivity" format="ascii"> 
+                0     2     2     4     4     6
+     6     8     8    10    10    11
+     0     1     1     3     3     5
+     5     7     7     9     9    11
+     1     2     3     4     5     6
+     7     8     9    10     1     4
+     3     6     6     7     8     9
+                   </DataArray> 
+        <DataArray type="Int64" Name="offsets" format="ascii"> 
+                          2               4               6               8              10              12
+                         14              16              18              20              22              24
+                         26              28              30              32              34              36
+                         38              40              42
+        </DataArray> 
+        <DataArray type="UInt8" Name="types" format="ascii"> 
+             3  3  3  3  3  3
+             3  3  3  3  3  3
+             3  3  3  3  3  3
+             3  3  3
+        </DataArray> 
+      </Cells> 
+    </Piece> 
+  </UnstructuredGrid> 
+</VTKFile> 

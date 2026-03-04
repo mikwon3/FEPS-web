@@ -1,0 +1,87 @@
+**********************************************************************
+*     FEPS (Finite Element Analysis Program for General Structure)   *
+*     Author: Minho Kwon, Sept. 2025 implemented as Python           *
+*             for graduate course in Dept. of Civil Engineering      *
+*             Gyeongsang National University, Jinju, Korea.          *
+**********************************************************************
+
+
+
+ Input file name: model.inp
+
+
+  === Node Definition Data === 
+  Node     x-coord     y-coord 
+     1       0.000       0.000
+     2       1.500       3.000
+     3       0.000       2.000
+     4       3.000       2.000
+     5       3.000       0.000
+
+  === Material Definition Data === 
+   Code  El.modulus  Pois.ratio 
+    1     2.000e+08      0.300 
+
+  ==== Property Definition Data ==== 
+   Code    Bar-area  Plate-thickness       Alpha        Iyy         Izz           J
+     1    4.740e-03    1.000e+00        0.000e+00                2.200e-05 
+
+  ====== Element Definition Data ====== 
+  Type      Number   Mcode Pcode       Node-list .... 
+  BEAM2D       1       1     1      1      3
+  BEAM2D       2       1     1      3      2
+  BEAM2D       3       1     1      2      4
+  BEAM2D       4       1     1      4      5
+
+  Type      Number                      Element Loads 
+                           wx          wy          wz     Temperature 
+  BEAM2D      1        0.000e+00   0.000e+00               0.000e+00
+  BEAM2D      2        0.000e+00   2.500e+01               0.000e+00
+  BEAM2D      3        0.000e+00   0.000e+00               0.000e+00
+  BEAM2D      4        0.000e+00   0.000e+00               0.000e+00
+
+  ========= Nodal Boundary Conditions and Nodal Load Data ======= 
+  1. Prescribed Nodal Loads 
+  Node  x-BCtag y-BCtag th-BCtag       Prescribed 
+                                  Fx         Fy        Mzz 
+    1    1.000    1.000    1.000  0.000e+00  0.000e+00  0.000e+00
+    2    0.000    0.000    0.000  0.000e+00  0.000e+00  0.000e+00
+    3    0.000    0.000    0.000  0.000e+00  0.000e+00  0.000e+00
+    4    0.000    0.000    0.000  0.000e+00  0.000e+00  0.000e+00
+    5    1.000    1.000    1.000  0.000e+00  0.000e+00  0.000e+00
+
+  2. Prescribed Displacement 
+  Node  x-BCtag y-BCtag th-BCtag       Prescribed 
+                                  Ux         Uy        Rzz 
+    1   1.000    1.000    1.000   0.000e+00  0.000e+00  0.000e+00
+    2   0.000    0.000    0.000   0.000e+00  0.000e+00  0.000e+00
+    3   0.000    0.000    0.000   0.000e+00  0.000e+00  0.000e+00
+    4   0.000    0.000    0.000   0.000e+00  0.000e+00  0.000e+00
+    5   1.000    1.000    1.000   0.000e+00  0.000e+00  0.000e+00
+
+  --------- Computed  Node Displacements  ------- 
+  Node   x-coord    y-coord     x-displ      y-displ      Angle  
+     1   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00
+     2   1.500e+00   3.000e+00   3.771e-03  -4.930e-04   1.261e-03
+     3   0.000e+00   2.000e+00   3.475e-03  -3.870e-05  -2.169e-03
+     4   3.000e+00   2.000e+00   4.017e-03  -4.042e-05  -1.535e-03
+     5   3.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00
+  ------------ Computed Node Forces ------------- 
+  Node   x-coord    y-coord    x-force      y-force      Moment  
+     1   0.000e+00   0.000e+00  -8.619e+00   1.834e+01   1.339e+01
+     2   1.500e+00   3.000e+00   0.000e+00   0.000e+00   0.000e+00
+     3   0.000e+00   2.000e+00   0.000e+00   0.000e+00   0.000e+00
+     4   3.000e+00   2.000e+00   0.000e+00   0.000e+00   0.000e+00
+     5   3.000e+00   0.000e+00  -1.638e+01   1.916e+01   1.976e+01
+
+ --------- Beam Section Forces Information--------- 
+ Type   Number  Node      Force-Local_x   Force-Local_y     Moment 
+ BEAM2D      1      1       1.834e+01       8.619e+00       1.339e+01
+                    3      -1.834e+01      -8.619e+00       3.847e+00
+ BEAM2D      2      3       3.002e+00      -2.503e+01      -1.739e+01
+                    2      -3.002e+00      -2.004e+01       1.290e+01
+ BEAM2D      3      2       2.426e+01      -6.854e+00       6.461e-01
+                    4      -2.426e+01       6.854e+00      -1.300e+01
+ BEAM2D      4      4       1.916e+01       1.638e+01       1.300e+01
+                    5      -1.916e+01      -1.638e+01       1.976e+01
+

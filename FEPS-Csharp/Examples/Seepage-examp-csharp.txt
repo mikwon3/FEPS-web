@@ -1,0 +1,94 @@
+                    
+# Example usage:
+if __name__ == "__main__":
+    # Example 1: Structural analysis with triangle element
+    print("=== Structural Analysis Example ===")
+    coord_struct = CoordType(
+        x=np.array([0.0, 1.0, 0.0]),      # x-coordinates of 3 nodes
+        y=np.array([0.0, 0.0, 1.0]),      # y-coordinates of 3 nodes
+        z=np.array([0.1, 0.1, 0.1])       # thicknesses at 3 nodes
+    )
+
+    # Material constitutive matrix for plane stress (example: isotropic material)
+    E = 200e9  # Young's modulus (Pa)
+    nu = 0.3   # Poisson's ratio
+    factor = E / (1 - nu**2)
+    cmat = factor * np.array([
+        [1.0,  nu,   0.0],
+        [nu,   1.0,  0.0],
+        [0.0,  0.0,  (1-nu)/2]
+    ])
+
+    # Body forces (e.g., gravity)
+    eload = np.array([0.0, -9.81])  # [fx, fy] per unit volume
+
+    # Calculate element stiffness matrix
+    esm, forces, error = trig3m_stif("", coord_struct, cmat, 3, 6, eload)
+
+    if not error.flag:
+        print("Structural element stiffness matrix shape:", esm.shape)
+        print("Element nodal forces:", forces)
+    else:
+        print("Error:", error.mssg)
+
+    print("\n=== Seepage Analysis Examples ===")
+
+    # Example 2: Seepage analysis with triangle element
+    print("\n--- Triangle Seepage Element ---")
+    coord_seep = CoordType(
+        x=np.array([0.0, 2.0, 1.0]),      # x-coordinates of 3 nodes
+        y=np.array([0.0, 0.0, 2.0]),      # y-coordinates of 3 nodes
+        z=np.array([1.0, 1.0, 1.0])       # not used in seepage
+    )
+
+    # Permeability matrix for seepage (hydraulic conductivity)
+    kx = 1e-6  # Hydraulic conductivity in x-direction (m/s)
+    ky = 1e-6  # Hydraulic conductivity in y-direction (m/s)
+    dmat = np.array([
+        [kx,  0.0],
+        [0.0, ky]
+    ])
+
+    # Nodal head values
+    head_values = np.array([10.0, 8.0, 6.0])  # hydraulic head at each node
+
+    # Calculate triangle seepage stiffness matrix
+    esm_seep, error_seep = spg_t3m_stif("", coord_seep, dmat, 1, 3)
+
+    if not error_seep.flag:
+        print("Triangle seepage stiffness matrix shape:", esm_seep.shape)
+
+        # Calculate hydraulic gradients and flow rates
+        esigs, eps = spg_t3m_sigm("", coord_seep, dmat, head_values)
+        print("Hydraulic gradients (grad_x, grad_y):")
+        print(eps[:2, :])
+        print("Flow rates (qx, qy):")
+        print(esigs[:2, :])
+    else:
+        print("Error:", error_seep.mssg)
+
+    # Example 3: Seepage analysis with quadrilateral element
+    print("\n--- Quadrilateral Seepage Element ---")
+    coord_quad = CoordType(
+        x=np.array([0.0, 2.0, 2.0, 0.0]),  # x-coordinates of 4 nodes
+        y=np.array([0.0, 0.0, 2.0, 2.0]),  # y-coordinates of 4 nodes
+        z=np.array([1.0, 1.0, 1.0, 1.0])   # not used in seepage
+    )
+
+    # Nodal head values for quadrilateral
+    head_values_quad = np.array([10.0, 8.0, 6.0, 7.0])
+
+    # Calculate quadrilateral seepage stiffness matrix
+    esm_quad, error_quad = spg_q4m_stif("", coord_quad, dmat, 2, 4)
+
+    if not error_quad.flag:
+        print("Quadrilateral seepage stiffness matrix shape:", esm_quad.shape)
+
+        # Calculate hydraulic gradients and flow rates using direct method
+        esigs_quad, eps_quad = spg_q4m_sigm("DIRECT", coord_quad, dmat, head_values_quad)
+        print("Hydraulic gradients at corner nodes (grad_x, grad_y):")
+        print(eps_quad[:2, :])
+        print("Flow rates at corner nodes (qx, qy):")
+        print(esigs_quad[:2, :])
+    else:
+        print("Error:", error_quad.mssg)

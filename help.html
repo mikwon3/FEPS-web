@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FEPS v0.1 — 사용자 설명서</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── CSS 변수 (FEPS 앱 팔레트와 동일) ── */
+    :root {
+      --bg-dark    : #1a1d24;
+      --bg-panel   : #22262e;
+      --bg-toolbar : #1e2128;
+      --bg-input   : #2d323c;
+      --border     : #33384380;
+      --accent     : #4f8cff;
+      --text       : #e0e3ea;
+      --text-dim   : #8b909c;
+      --success    : #66bb6a;
+      --warn       : #ffa726;
+      --danger     : #ef5350;
+      --radius     : 6px;
+      --font       : 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono       : 'JetBrains Mono', 'Menlo', monospace;
+      --toc-w      : 248px;
+      --header-h   : 48px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg-dark);
+    }
+
+    /* ── 상단 헤더 ── */
+    #help-header {
+      height: var(--header-h);
+      background: var(--bg-toolbar);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 20px;
+      flex-shrink: 0;
+    }
+
+    #help-header .logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -.2px;
+    }
+
+    #help-header .subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    #help-header .meta {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-dim);
+      opacity: .7;
+      white-space: nowrap;
+    }
+
+    /* ── 검색바 ── */
+    #search-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 12px;
+      border-left: 1px solid var(--border);
+      margin-left: 12px;
+    }
+
+    #search-input {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 4px 10px;
+      width: 180px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    #search-input:focus { border-color: var(--accent); }
+    #search-input::placeholder { color: var(--text-dim); }
+
+    #search-count {
+      font-size: 11px;
+      color: var(--text-dim);
+      min-width: 40px;
+    }
+
+    /* ── 레이아웃 ── */
+    #help-body {
+      display: flex;
+      height: calc(100vh - var(--header-h));
+      overflow: hidden;
+    }
+
+    /* ── 좌측 TOC ── */
+    #toc {
+      width: var(--toc-w);
+      flex-shrink: 0;
+      overflow-y: auto;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      padding: 16px 8px 24px;
+    }
+
+    #toc-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-dim);
+      padding: 0 8px 10px;
+    }
+
+    .toc-a {
+      display: block;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text-dim);
+      text-decoration: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background .1s, color .1s;
+      border-left: 2px solid transparent;
+    }
+    .toc-a:hover { background: #ffffff10; color: var(--text); }
+    .toc-a.active {
+      background: rgba(79,140,255,.14);
+      color: var(--accent);
+      border-left-color: var(--accent);
+      font-weight: 500;
+    }
+    .toc-a.h1 { font-weight: 600; color: var(--text); margin-top: 8px; }
+    .toc-a.h2 { padding-left: 12px; margin-top: 2px; }
+    .toc-a.h3 { padding-left: 24px; font-size: 11px; margin-top: 1px; }
+    .toc-a.h4 { padding-left: 34px; font-size: 11px; margin-top: 1px; color: #6b7280; }
+
+    /* ── 우측 본문 ── */
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 36px 48px 60px;
+      min-width: 0;
+      scroll-behavior: smooth;
+      background: var(--bg-dark);
+    }
+
+    /* ── 검색 하이라이트 ── */
+    mark.hl {
+      background: #ffa72680;
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+    mark.hl.current {
+      background: #ffa726cc;
+      outline: 2px solid var(--warn);
+      border-radius: 2px;
+    }
+
+    /* ══════════════ 마크다운 렌더 스타일 ══════════════ */
+
+    #content h1 {
+      font-size: 24px; font-weight: 700; color: var(--text);
+      margin: 0 0 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+    }
+    #content h2 {
+      font-size: 18px; font-weight: 600; color: var(--text);
+      margin: 40px 0 12px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid var(--border);
+    }
+    #content h3 {
+      font-size: 14px; font-weight: 600; color: var(--accent);
+      margin: 24px 0 8px;
+    }
+    #content h4 {
+      font-size: 13px; font-weight: 600; color: var(--text);
+      margin: 16px 0 6px;
+    }
+    #content p {
+      font-size: 13px; line-height: 1.75; color: var(--text);
+      margin: 0 0 10px;
+    }
+    #content ul, #content ol {
+      font-size: 13px; line-height: 1.75; color: var(--text);
+      margin: 0 0 10px; padding-left: 22px;
+    }
+    #content li { margin-bottom: 4px; }
+
+    #content code {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      color: var(--accent);
+    }
+    #content pre {
+      background: #12151c;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      overflow-x: auto;
+      margin: 10px 0 16px;
+      line-height: 1.6;
+    }
+    #content pre code {
+      background: none; border: none; padding: 0;
+      font-size: 12px; color: #c9d1d9;
+    }
+
+    #content blockquote {
+      border-left: 3px solid var(--accent);
+      margin: 12px 0;
+      padding: 8px 16px;
+      background: rgba(79,140,255,.06);
+      border-radius: 0 5px 5px 0;
+      color: var(--text-dim);
+      font-size: 12.5px;
+      line-height: 1.7;
+    }
+    #content blockquote p { margin: 0; color: inherit; font-size: inherit; }
+
+    #content table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0 18px;
+      font-size: 12.5px;
+    }
+    #content th {
+      background: var(--bg-toolbar);
+      color: var(--text);
+      font-weight: 600;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+    #content td {
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+      line-height: 1.6;
+    }
+    #content tr:nth-child(even) td { background: #ffffff05; }
+
+    #content a { color: var(--accent); text-decoration: none; }
+    #content a:hover { text-decoration: underline; }
+
+    #content hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+    #content strong { color: var(--text); font-weight: 600; }
+    #content em { color: var(--text-dim); }
+
+    /* ── 로딩 / 에러 상태 ── */
+    .status-msg {
+      color: var(--text-dim);
+      font-size: 13px;
+      padding: 40px;
+      text-align: center;
+    }
+    .error-msg {
+      color: var(--danger);
+      font-size: 13px;
+      padding: 40px 48px;
+      line-height: 1.8;
+    }
+    .error-msg code {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--warn);
+    }
+
+    /* ── 스크롤바 ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #33384360; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4f8cff60; }
+
+    /* ── Back-to-top 버튼 ── */
+    #back-top {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0;
+      transition: opacity .2s;
+      box-shadow: 0 4px 12px rgba(79,140,255,.4);
+      z-index: 10;
+    }
+    #back-top.visible { opacity: 1; }
+    #back-top:hover { background: #3a74e8; }
+  </style>
+</head>
+<body>
+
+  <!-- ── 헤더 ── -->
+  <header id="help-header">
+    <span class="logo">FEPS</span>
+    <span class="subtitle">사용자 설명서</span>
+    <div id="search-wrap">
+      <input id="search-input" type="search" placeholder="검색…" autocomplete="off" />
+      <span id="search-count"></span>
+    </div>
+    <span class="meta">v0.1 &nbsp;|&nbsp; Minho Kwon &nbsp;|&nbsp; Dept. of Civil Engineering, GNU</span>
+  </header>
+
+  <!-- ── 바디 ── -->
+  <div id="help-body">
+    <nav id="toc">
+      <div id="toc-title">목차</div>
+    </nav>
+    <article id="content">
+      <p class="status-msg">설명서를 불러오는 중입니다…</p>
+    </article>
+  </div>
+
+  <!-- Back-to-top -->
+  <button id="back-top" title="맨 위로">↑</button>
+
+  <script>
+    (function () {
+      const contentEl = document.getElementById('content');
+      const tocEl     = document.getElementById('toc');
+      const searchEl  = document.getElementById('search-input');
+      const countEl   = document.getElementById('search-count');
+      const backTop   = document.getElementById('back-top');
+
+      let _tocItems   = [];   // { a, h } 쌍
+      let _marks      = [];   // 현재 검색 하이라이트 목록
+      let _markIdx    = -1;
+
+      /* ── 1. 컨텐츠 로드 ─────────────────────────────────────────── */
+      fetch('FEPS-UserManual.html')
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.text();
+        })
+        .then(html => {
+          contentEl.innerHTML = html;
+          _buildToc();
+          _setupScrollSpy();
+        })
+        .catch(err => {
+          contentEl.innerHTML =
+            '<div class="error-msg">' +
+            '<strong>설명서를 불러올 수 없습니다.</strong><br><br>' +
+            '원인: ' + err.message + '<br><br>' +
+            '⚠️ <code>file://</code> 프로토콜에서는 fetch가 제한됩니다.<br>' +
+            'VS Code <strong>Live Server</strong> 또는 ' +
+            '<code>python3 -m http.server</code> 로 접속하세요.' +
+            '</div>';
+          tocEl.innerHTML = '';
+        });
+
+      /* ── 2. TOC 생성 ─────────────────────────────────────────────── */
+      function _buildToc() {
+        const headings = contentEl.querySelectorAll('h1, h2, h3, h4');
+        if (!headings.length) return;
+
+        const frag = document.createDocumentFragment();
+        _tocItems  = [];
+
+        headings.forEach((h, i) => {
+          const id = 'hd-' + i;
+          h.id = id;
+
+          const a = document.createElement('a');
+          a.className   = 'toc-a ' + h.tagName.toLowerCase();
+          a.textContent = h.textContent;
+          a.title       = h.textContent;
+          a.href        = '#' + id;
+
+          a.addEventListener('click', e => {
+            e.preventDefault();
+            contentEl.scrollTo({ top: h.offsetTop - 16, behavior: 'smooth' });
+            _setActive(a);
+          });
+
+          frag.appendChild(a);
+          _tocItems.push({ a, h });
+        });
+
+        tocEl.appendChild(frag);
+        if (_tocItems.length) _setActive(_tocItems[0].a);
+      }
+
+      /* ── 3. 스크롤 스파이 ────────────────────────────────────────── */
+      function _setupScrollSpy() {
+        contentEl.addEventListener('scroll', _onScroll, { passive: true });
+      }
+
+      function _onScroll() {
+        /* Back-to-top 가시성 */
+        backTop.classList.toggle('visible', contentEl.scrollTop > 300);
+
+        if (!_tocItems.length) return;
+        const top = contentEl.scrollTop + 80;
+        let cur = _tocItems[0];
+        for (const item of _tocItems) {
+          if (item.h.offsetTop <= top) cur = item;
+          else break;
+        }
+        _setActive(cur.a);
+      }
+
+      function _setActive(target) {
+        _tocItems.forEach(({ a }) => a.classList.remove('active'));
+        target.classList.add('active');
+        /* TOC 내 활성 항목 가시 보장 */
+        target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+
+      /* ── 4. 텍스트 검색 & 하이라이트 ────────────────────────────── */
+      let _searchTimer;
+      searchEl.addEventListener('input', () => {
+        clearTimeout(_searchTimer);
+        _searchTimer = setTimeout(_doSearch, 250);
+      });
+      searchEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter') _nextMark(e.shiftKey ? -1 : 1);
+        if (e.key === 'Escape') { searchEl.value = ''; _clearMarks(); }
+      });
+
+      function _doSearch() {
+        _clearMarks();
+        const q = searchEl.value.trim();
+        if (!q || q.length < 2) { countEl.textContent = ''; return; }
+
+        // TreeWalker로 텍스트 노드만 순회
+        const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        const walker = document.createTreeWalker(
+          contentEl, NodeFilter.SHOW_TEXT, {
+            acceptNode: n =>
+              n.parentElement.closest('script, style, mark') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+          }
+        );
+
+        const toProcess = [];
+        let node;
+        while ((node = walker.nextNode())) {
+          if (re.test(node.nodeValue)) toProcess.push(node);
+          re.lastIndex = 0;
+        }
+
+        toProcess.forEach(tn => {
+          const frag = document.createDocumentFragment();
+          const parts = tn.nodeValue.split(re);
+          const hits  = tn.nodeValue.match(re) || [];
+          parts.forEach((part, i) => {
+            frag.appendChild(document.createTextNode(part));
+            if (i < hits.length) {
+              const m = document.createElement('mark');
+              m.className = 'hl';
+              m.textContent = hits[i];
+              frag.appendChild(m);
+              _marks.push(m);
+            }
+          });
+          tn.parentNode.replaceChild(frag, tn);
+        });
+
+        countEl.textContent = _marks.length ? '1/' + _marks.length : '없음';
+        if (_marks.length) { _markIdx = 0; _highlightMark(0); }
+      }
+
+      function _nextMark(dir) {
+        if (!_marks.length) return;
+        _markIdx = (_markIdx + dir + _marks.length) % _marks.length;
+        countEl.textContent = (_markIdx + 1) + '/' + _marks.length;
+        _highlightMark(_markIdx);
+      }
+
+      function _highlightMark(idx) {
+        _marks.forEach((m, i) => m.classList.toggle('current', i === idx));
+        _marks[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+
+      function _clearMarks() {
+        // mark 태그를 text 노드로 되돌리기
+        _marks.forEach(m => {
+          const tn = document.createTextNode(m.textContent);
+          m.parentNode.replaceChild(tn, m);
+        });
+        // 인접 text 노드 병합
+        contentEl.normalize();
+        _marks = []; _markIdx = -1;
+        countEl.textContent = '';
+      }
+
+      /* ── 5. Back-to-top ─────────────────────────────────────────── */
+      backTop.addEventListener('click', () =>
+        contentEl.scrollTo({ top: 0, behavior: 'smooth' })
+      );
+
+    })();
+  </script>
+</body>
+</html>

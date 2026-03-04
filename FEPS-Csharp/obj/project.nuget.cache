@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "dgSpecHash": "1mWo9zuEukU=",
+  "success": true,
+  "projectFilePath": "/Users/stlab/Dropbox/App-develop/FEPS-web/FEPS-Csharp/FEPS-Csharp.csproj",
+  "expectedPackageFiles": [
+    "/Users/stlab/.nuget/packages/mathnet.numerics/5.0.0/mathnet.numerics.5.0.0.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/microsoft.netcore.platforms/1.0.1-rc2-24027/microsoft.netcore.platforms.1.0.1-rc2-24027.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/microsoft.netcore.runtime/1.0.2-rc2-24027/microsoft.netcore.runtime.1.0.2-rc2-24027.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/microsoft.netcore.runtime.coreclr/1.0.2-rc2-24027/microsoft.netcore.runtime.coreclr.1.0.2-rc2-24027.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/microsoft.netcore.runtime.native/1.0.2-rc2-24027/microsoft.netcore.runtime.native.1.0.2-rc2-24027.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/microsoft.netcore.targets/1.0.1-rc2-24027/microsoft.netcore.targets.1.0.1-rc2-24027.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/microsoft.netcore.windows.apisets/1.0.1-rc2-24027/microsoft.netcore.windows.apisets.1.0.1-rc2-24027.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/netstandard.library/1.5.0-rc2-24027/netstandard.library.1.5.0-rc2-24027.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/skiasharp/3.119.2/skiasharp.3.119.2.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/skiasharp.nativeassets.macos/3.119.2/skiasharp.nativeassets.macos.3.119.2.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/skiasharp.nativeassets.win32/3.119.2/skiasharp.nativeassets.win32.3.119.2.nupkg.sha512",
+    "/Users/stlab/.nuget/packages/triangle/0.0.6-beta3/triangle.0.0.6-beta3.nupkg.sha512"
+  ],
+  "logs": []
+}

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /Users/stlab/Dropbox/App-develop/FEPS-web/js/*.js)",
+      "Bash(node --check /Users/stlab/Dropbox/App-develop/FEPS-web/js/solver.js)",
+      "Bash(node --check /Users/stlab/Dropbox/App-develop/FEPS-web/js/renderer.js)",
+      "Bash(node --check /Users/stlab/Dropbox/App-develop/FEPS-web/js/main.js)",
+      "Bash(grep -n \"gravity\" /Users/stlab/Dropbox/App-develop/FEPS-web/js/*.js)",
+      "Bash(node /tmp/test_feps.js)",
+      "Bash(node /private/tmp/test_thermal.js)",
+      "Bash(node -e \":*)",
+      "Bash(grep -n \"color-bar\\\\|color.bar\" /Users/stlab/Dropbox/App-develop/FEPS-web/js/*.js)",
+      "Bash(ls /Users/stlab/Dropbox/App-develop/FEPS-web/js/element*.js)"
+    ]
+  }
+}

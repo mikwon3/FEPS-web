@@ -1,0 +1,48 @@
+# FEPS Example 05: 2D Solid Cantilever Plate (TRIG3)
+# Same structure as ex04 but meshed with TRIG3 elements (diagonal split)
+# Structure: 8 x 1 m rectangular plate, cantilever (left edge fixed)
+# Each QUAD4 from ex04 is split into 2 TRIG3 => 8 elements total
+# Units: kN, m
+#
+# Node layout (same as ex04):
+#
+#  2---4---6---8---10
+#  |  /|  /|  /|  /|
+#  | / | / | / | / |
+#  1---3---5---7---9
+#
+10 2 2
+1   0.0   0.0
+2   0.0   1.0
+3   2.0   0.0
+4   2.0   1.0
+5   4.0   0.0
+6   4.0   1.0
+7   6.0   0.0
+8   6.0   1.0
+9   8.0   0.0
+10  8.0   1.0
+1
+1  1000.0  0.25
+1
+1  1.0  1.0  0.0  0.0  0.0  0.0
+8
+TRIG3  1  1  1   1  3  2    0  0  0
+TRIG3  2  1  1   3  4  2    0  0  0
+TRIG3  3  1  1   3  5  4    0  0  0
+TRIG3  4  1  1   5  6  4    0  0  0
+TRIG3  5  1  1   5  7  6    0  0  0
+TRIG3  6  1  1   7  8  6    0  0  0
+TRIG3  7  1  1   7  9  8    0  0  0
+TRIG3  8  1  1   9 10  8    0  0  0
+10
+1   1  1   0.0    0.0   0.0   0.0
+2   1  1   0.0    0.0   0.0   0.0
+3   0  0   0.0    0.0   0.0   0.0
+4   0  0   0.0    0.0   0.0   0.0
+5   0  0   0.0    0.0   0.0   0.0
+6   0  0   0.0    0.0   0.0   0.0
+7   0  0   0.0    0.0   0.0   0.0
+8   0  0   0.0    0.0   0.0   0.0
+9   0  0   0.0  -50.0   0.0   0.0
+10  0  0   0.0  -50.0   0.0   0.0

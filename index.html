@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FEPS v0.1 – Finite Element Program for General Structure</title>
+  <meta name="description" content="2D Finite Element Analysis Program with interactive pre- and post-processing." />
+  <meta name="version" content="0.1" />
+  <meta name="author" content="권민호, 경상국립대학교 토목공학과" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+  <!-- ═══ TOOLBAR ═══ -->
+  <header id="toolbar">
+    <div class="toolbar-left">
+      <div class="logo">
+        <svg width="26" height="26" viewBox="0 0 26 26">
+          <rect x="2" y="2" width="22" height="22" rx="4" fill="#4f8cff" opacity=".85" />
+          <path d="M7 8h12M7 13h9M7 18h6" stroke="#fff" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <span class="logo-text">FEPS</span>
+      </div>
+      <button id="btn-new" class="tb-btn" title="New model">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="3" y="2" width="10" height="12" rx="1" />
+          <line x1="6" y1="6" x2="10" y2="6" />
+          <line x1="6" y1="9" x2="10" y2="9" />
+        </svg>
+        New
+      </button>
+      <button id="btn-open" class="tb-btn" title="Open .inp file">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M2 13V5a2 2 0 012-2h3l2 2h3a2 2 0 012 2v1" />
+          <path d="M2 13l2-5h11l-2 5H2z" />
+        </svg>
+        Open
+      </button>
+      <button id="btn-saveas" class="tb-btn" title="Save model as .inp file">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M8 2v9m0 0l-3-3m3 3l3-3M3 14h10" />
+        </svg>
+        Save As
+      </button>
+      <button id="btn-export" class="tb-btn" title="Export to other formats">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M4 2v12M4 8h8M12 5l3 3-3 3" />
+        </svg>
+        Export
+      </button>
+      <div class="tb-sep"></div>
+      <button id="btn-run" class="tb-btn accent" title="Run FE Analysis">
+        <svg width="16" height="16" fill="currentColor">
+          <polygon points="4,2 14,8 4,14" />
+        </svg>
+        Run Analysis
+      </button>
+      <button id="btn-open-output" class="tb-btn" title="Open analysis output report" disabled>
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="3" y="2" width="10" height="13" rx="1" />
+          <line x1="6" y1="6" x2="11" y2="6" /><line x1="6" y1="9" x2="11" y2="9" /><line x1="6" y1="12" x2="9" y2="12" />
+        </svg>
+        Output
+      </button>
+      <button id="btn-report" class="tb-btn" title="Generate HTML report with full tables (nodes, elements, materials, sections, results)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="2" y="1" width="9" height="12" rx="1" />
+          <line x1="4" y1="4.5" x2="9" y2="4.5" /><line x1="4" y1="7" x2="9" y2="7" /><line x1="4" y1="9.5" x2="7" y2="9.5" />
+          <circle cx="12" cy="12" r="3.5" fill="#2563eb" stroke="none" />
+          <text x="9.7" y="14.3" font-size="5" fill="white" font-weight="bold" stroke="none" font-family="sans-serif">H</text>
+        </svg>
+        Report
+      </button>
+      <div class="tb-sep"></div>
+      <button id="btn-undo" class="tb-btn" title="Undo last node or element">↩ Undo</button>
+      <div class="tb-sep"></div>
+      <button id="btn-zoom-window" class="tb-btn" title="Zoom Window — drag rectangle to zoom">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="2" y="2" width="12" height="12" rx="1" stroke-dasharray="3 2" />
+          <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" opacity=".5" />
+          <line x1="13" y1="13" x2="15" y2="15" stroke-width="2" />
+        </svg>
+        Zoom Win
+      </button>
+      <button id="btn-zoom-all" class="tb-btn" title="Zoom to fit all nodes">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Zoom All
+      </button>
+      <div class="tb-sep"></div>
+      <select id="del-type" class="tb-combo" title="Object type to delete">
+        <option value="node">Node</option>
+        <option value="element">Element</option>
+        <option value="line">Line</option>
+      </select>
+      <button id="btn-delete" class="tb-btn" title="Delete selected objects">🗑 Delete</button>
+      <div class="tb-sep"></div>
+      <button id="btn-elem-editor" class="tb-btn" title="요소 코드 에디터 — 커스텀 요소를 직접 작성·등록합니다">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="2" y="3" width="12" height="10" rx="1"/>
+          <path d="M5 7l-2 2 2 2M11 7l2 2-2 2M8 5l-1 6" stroke-linecap="round"/>
+        </svg>
+        요소 편집기
+      </button>
+      <div class="tb-sep"></div>
+      <button id="btn-debug" class="tb-btn" title="디버그 모드 활성화 — 해석 후 강성행렬·절점력 뷰어를 엽니다">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="8" cy="8" r="5"/>
+          <line x1="8" y1="5" x2="8" y2="8.5"/>
+          <circle cx="8" cy="11" r=".8" fill="currentColor" stroke="none"/>
+        </svg>
+        디버그<span id="dbg-status" style="font-size:9px;font-weight:700;letter-spacing:.5px;margin-left:2px;color:var(--accent-text,#60a5fa)"></span>
+      </button>
+      <button id="btn-debug-viewer" class="tb-btn" title="디버그 뷰어 수동 열기 (해석 완료 후)">
+        행렬 보기
+      </button>
+      <div class="tb-sep"></div>
+      <button id="btn-help" class="tb-btn" title="사용자 설명서 열기 (FEPS-UserManual.md)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="8" cy="8" r="6"/>
+          <path d="M6.5 6.5a1.5 1.5 0 1 1 2 1.4c-.5.3-.8.7-.8 1.1" stroke-linecap="round"/>
+          <circle cx="8" cy="11.5" r=".8" fill="currentColor" stroke="none"/>
+        </svg>
+        Help
+      </button>
+    </div>
+    <div class="toolbar-right">
+      <span id="model-info" class="model-info">No model loaded</span>
+    </div>
+  </header>
+
+  <!-- ═══ TABS ═══ -->
+  <nav id="tab-bar">
+    <button class="tab active" data-tab="pre">Pre-Process</button>
+    <button class="tab" data-tab="post">Post-Process</button>
+  </nav>
+
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <main id="app">
+
+    <!-- ── Left Panel ── -->
+    <aside id="side-panel">
+
+      <!-- ═══ PRE-PROCESS PANEL ═══ -->
+      <div id="panel-pre" class="panel-content active">
+
+        <!-- Materials -->
+        <section class="panel-section">
+          <h3 class="section-title">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+              <circle cx="7" cy="7" r="5" />
+              <path d="M5 7h4" />
+            </svg>
+            Materials
+          </h3>
+          <div class="field-row">
+            <label>E (Young's)</label>
+            <input id="mat-E" type="number" value="200e6" step="any" />
+          </div>
+          <div class="field-row">
+            <label>ν (Poisson)</label>
+            <input id="mat-nu" type="number" value="0.3" step="0.01" min="0" max="0.5" />
+          </div>
+          <div class="field-row">
+            <label>ρ (Density)</label>
+            <input id="mat-rho" type="number" value="0" step="any" min="0"
+              title="Mass density (kg/m³ or consistent units). Used to compute self-weight body force when gravity is set." />
+          </div>
+          <button id="btn-add-mat" class="panel-btn">Add Material</button>
+          <div id="mat-list" class="item-list"></div>
+        </section>
+
+        <!-- Properties -->
+        <section class="panel-section">
+          <h3 class="section-title">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="2" y="5" width="10" height="4" rx="1" />
+            </svg>
+            Section Properties
+          </h3>
+          <div class="field-row">
+            <label>A (Area)</label>
+            <input id="prop-A" type="number" value="1.0" step="any"
+              title="Cross-sectional area. Used for BAR2/BEAM2D/BEAM3D truss and frame elements. Not used for 2D solid elements (QUAD4, TRIG3) — only thickness t applies there." />
+          </div>
+          <div class="field-row">
+            <label>t (Thick.)</label>
+            <input id="prop-t" type="number" value="1.0" step="any" />
+          </div>
+          <div class="field-row">
+            <label>I<sub>z</sub></label>
+            <input id="prop-Iz" type="number" value="0" step="any" />
+          </div>
+          <div class="field-row">
+            <label>I<sub>y</sub></label>
+            <input id="prop-Iy" type="number" value="0" step="any" title="Moment of inertia about local y (3D beam bending in xz-plane)" />
+          </div>
+          <div class="field-row">
+            <label>J (torsion)</label>
+            <input id="prop-J" type="number" value="0" step="any" title="Torsional constant (3D beam)" />
+          </div>
+          <div class="field-row">
+            <label>α (therm.)</label>
+            <input id="prop-alpha" type="number" value="0" step="any"
+              title="Thermal expansion coefficient (e.g. 1.2e-5 for steel). Required for ΔT temperature loads on elements." />
+          </div>
+          <button id="btn-add-prop" class="panel-btn">Add Property</button>
+          <div id="prop-list" class="item-list"></div>
+        </section>
+
+        <!-- Gravity / Body Force -->
+        <section class="panel-section">
+          <h3 class="section-title">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+              <line x1="7" y1="2" x2="7" y2="12" />
+              <polyline points="4,9 7,12 10,9" />
+            </svg>
+            Gravity
+          </h3>
+          <div class="field-row">
+            <label>g<sub>x</sub></label>
+            <input id="grav-x" type="number" value="0" step="any"
+              title="Gravity x-component (e.g. 0). Applied as body force ρ·A·gx per unit length." />
+          </div>
+          <div class="field-row">
+            <label>g<sub>y</sub></label>
+            <input id="grav-y" type="number" value="0" step="any"
+              title="Gravity y-component (e.g. -9.81 for downward). Applied as body force ρ·A·gy." />
+          </div>
+          <div class="field-row">
+            <label>g<sub>z</sub></label>
+            <input id="grav-z" type="number" value="0" step="any"
+              title="Gravity z-component (3D models only)." />
+          </div>
+        </section>
+
+        <!-- Element Creation -->
+        <section class="panel-section">
+          <h3 class="section-title">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+              <line x1="3" y1="11" x2="11" y2="3" />
+              <circle cx="3" cy="11" r="1.5" />
+              <circle cx="11" cy="3" r="1.5" />
+            </svg>
+            Element Creation
+          </h3>
+
+          <!-- Unified element type selector -->
+          <div class="field-row">
+            <label>Type</label>
+            <select id="ele-type" class="combo">
+              <optgroup label="── 1D : Truss / Beam ──">
+                <option value="BAR2">BAR2 (Truss 2D)</option>
+                <option value="BEAM2D" selected>BEAM2D (Frame 2D)</option>
+                <option value="BAR3D">BAR3D (Truss 3D)</option>
+                <option value="BEAM3D">BEAM3D (Frame 3D)</option>
+              </optgroup>
+              <optgroup label="── 2D : Solid (mesh) ──">
+                <option value="TRIG3">TRIG3 (3-node tri)</option>
+                <option value="TRIG6">TRIG6 (6-node tri)</option>
+                <option value="QUAD4">QUAD4 (4-node quad)</option>
+                <option value="QUAD8">QUAD8 (8-node quad)</option>
+              </optgroup>
+            </select>
+          </div>
+          <p id="ele-type-hint" class="muted" style="margin-top:2px;font-size:10px;">
+            Start Draw → define boundary → End Draw → Mesh Polygon
+          </p>
+
+          <div class="field-row" style="margin-top:4px">
+            <label>Mat</label>
+            <select id="ele-mat" class="combo"><option value="1">1</option></select>
+          </div>
+          <div class="field-row">
+            <label>Prop</label>
+            <select id="ele-prop" class="combo"><option value="1">1</option></select>
+          </div>
+
+          <!-- Grid snap -->
+          <div class="field-row" style="margin-top:4px">
+            <label class="chk"><input id="chk-snap-grid" type="checkbox" checked /> Snap to Grid</label>
+          </div>
+          <div class="field-row" style="margin-top:2px">
+            <label style="min-width:48px">Spacing</label>
+            <input id="grid-spacing" type="number" min="0.1" step="any" value="1" style="width:60px"
+              title="Grid spacing in model units" />
+          </div>
+          <div class="field-row" style="margin-top:2px">
+            <label style="min-width:48px">Count</label>
+            <input id="grid-count" type="number" min="1" max="500" step="1" value="10" style="width:60px"
+              title="Number of grid lines on each side of origin" />
+          </div>
+
+          <!-- Draw / Polygon buttons -->
+          <button id="btn-create-node" class="panel-btn draw-toggle" style="width:100%;margin-bottom:4px">✚ Create Node</button>
+          <div class="field-row" style="gap:4px">
+            <button id="btn-draw-start" class="panel-btn draw-toggle" style="flex:1">▶ Start Draw</button>
+            <button id="btn-draw-end"   class="panel-btn" style="flex:1" disabled>■ End Draw</button>
+          </div>
+          <div class="field-row" style="margin-top:4px;gap:6px;align-items:center">
+            <input type="checkbox" id="chk-close-path" checked style="margin:0;cursor:pointer"/>
+            <label for="chk-close-path" style="font-size:12px;cursor:pointer"
+              title="ON: Close polygon (for 2D solid elements). OFF: Open polyline (for Beam / Bar elements).">Close Path</label>
+          </div>
+          <p id="draw-status" class="muted" style="margin-top:4px;"></p>
+
+          <!-- Mesh polygon (only relevant when 2D type is selected) -->
+          <div class="field-row" style="margin-top:6px;gap:4px;align-items:center">
+            <label style="min-width:30px" title="x·y 방향 메시 분할 수를 각각 지정합니다">Div</label>
+            <span style="font-size:11px;color:var(--text-dim)">X</span>
+            <input id="mesh-div-x" type="number" min="1" max="200" value="4" style="width:46px"
+              title="x방향 분할 수 (가로 셀 수). 폴리곤 너비를 이 수만큼 균등 분할합니다." />
+            <span style="font-size:11px;color:var(--text-dim)">Y</span>
+            <input id="mesh-div-y" type="number" min="1" max="200" value="4" style="width:46px"
+              title="y방향 분할 수 (세로 셀 수). 폴리곤 높이를 이 수만큼 균등 분할합니다." />
+          </div>
+          <div class="field-row" style="gap:4px">
+            <button id="btn-mesh-poly" class="panel-btn" style="flex:1" disabled>Mesh Polygon</button>
+            <button id="btn-add-hole"  class="panel-btn" style="flex:1" disabled>+ Add Hole</button>
+          </div>
+          <div class="field-row" style="margin-top:2px;gap:4px;align-items:center">
+            <label style="font-size:11px;color:var(--text-dim);white-space:nowrap">Hole type:</label>
+            <select id="hole-type" style="font-size:11px;flex:1;background:var(--bg-input,#2a2a2a);color:inherit;border:1px solid var(--border);border-radius:3px;padding:2px 4px"
+              title="Shape to use when drawing a hole">
+              <option value="polygon">Polygon</option>
+              <option value="rectangle">Rectangle</option>
+              <option value="circle">Circle</option>
+            </select>
+          </div>
+          <p id="hole-status" class="muted" style="margin-top:2px;font-size:10px;"></p>
+
+          <div id="ele-list" class="item-list"></div>
+        </section>
+
+        <!-- Selection & Assignment -->
+        <section class="panel-section">
+          <h3 class="section-title">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="2" y="2" width="10" height="10" rx="1" stroke-dasharray="3 2" />
+            </svg>
+            Selection &amp; Assignment
+          </h3>
+          <div class="field-row" style="gap:4px">
+            <button id="btn-sel-ele" class="panel-btn sel-toggle" style="flex:1">🔲 Select Elem</button>
+            <button id="btn-sel-nod" class="panel-btn sel-toggle" style="flex:1">⊙ Select Nodes</button>
+          </div>
+          <p id="sel-info" class="muted" style="margin-top:4px;">Click canvas objects to select</p>
+          <div class="field-row" style="gap:4px;margin-top:6px">
+            <button id="btn-assign-mat" class="panel-btn" style="flex:1" disabled>Assign Mat/Prop</button>
+            <button id="btn-assign-bc" class="panel-btn" style="flex:1" disabled>Assign BC/Load</button>
+          </div>
+          <button id="btn-clear-sel" class="panel-btn" style="margin-top:4px">Clear Selection</button>
+        </section>
+
+        <!-- Boundary Conditions -->
+        <section class="panel-section">
+          <h3 class="section-title">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M3 11l4-4 4 4" />
+              <line x1="7" y1="7" x2="7" y2="2" />
+            </svg>
+            Boundary Conditions
+          </h3>
+          <div id="bc-list" class="item-list"></div>
+        </section>
+
+        <!-- Loads -->
+        <section class="panel-section">
+          <h3 class="section-title">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+              <line x1="7" y1="2" x2="7" y2="12" />
+              <polyline points="4,9 7,12 10,9" />
+            </svg>
+            Nodal Loads
+          </h3>
+          <div id="load-list" class="item-list"></div>
+        </section>
+
+        <!-- Display options -->
+        <section class="panel-section">
+          <h3 class="section-title">Display</h3>
+          <label class="chk"><input id="chk-node-id" type="checkbox" checked /> Node IDs</label>
+          <label class="chk"><input id="chk-ele-id" type="checkbox" /> Element IDs</label>
+          <label class="chk"><input id="chk-bc" type="checkbox" checked /> BC Icons</label>
+          <label class="chk"><input id="chk-loads" type="checkbox" checked /> Load Arrows</label>
+          <label class="chk"><input id="chk-color-mat" type="checkbox" /> Color by Material</label>
+        </section>
+      </div>
+
+      <!-- ═══ POST-PROCESS PANEL ═══ -->
+      <div id="panel-post" class="panel-content">
+
+        <!-- Deformation -->
+        <section class="panel-section">
+          <h3 class="section-title">Deformation &amp; Scaling</h3>
+          <label class="chk"><input id="chk-deformed" type="checkbox" checked /> Show Deformed</label>
+          <label class="chk"><input id="chk-ghost" type="checkbox" checked /> Ghost Shape</label>
+          <div class="field-row">
+            <label>Scale</label>
+            <input id="scale-slider" type="range" min="0" max="1000" value="100" step="1" />
+            <input id="scale-input" type="number" class="slider-num-input" min="0" max="9999"
+              value="100" step="1" title="Deformation scale factor — type a value or drag the slider (values above 1000 are accepted)" />
+          </div>
+        </section>
+
+        <!-- Force Diagram Scale -->
+        <section class="panel-section">
+          <h3 class="section-title">Diagram Scale (BMD/SFD/AFD)</h3>
+          <div class="field-row">
+            <label>Size</label>
+            <input id="diag-slider" type="range" min="1" max="500" value="100" step="1" />
+            <input id="diag-input" type="number" class="slider-num-input" min="1" max="9999"
+              value="100" step="1" title="Force diagram scale — type a value or drag the slider" />
+          </div>
+        </section>
+
+        <!-- Result Type -->
+        <section class="panel-section">
+          <h3 class="section-title">Result Component</h3>
+          <select id="result-type" class="combo">
+            <option value="none">— None —</option>
+            <optgroup label="Stress">
+              <option value="sxx">σ_xx</option>
+              <option value="syy">σ_yy</option>
+              <option value="txy">τ_xy</option>
+              <option value="smax">σ_max (Principal)</option>
+              <option value="smin">σ_min (Principal)</option>
+              <option value="mises">von Mises</option>
+            </optgroup>
+            <optgroup label="1D Forces (Beam/Truss)">
+              <option value="axial">Axial Force (N)</option>
+              <option value="sfd">Shear Force Vy</option>
+              <option value="bmd">Bending Moment Mz</option>
+              <option value="sfd_z">Shear Force Vz (3D)</option>
+              <option value="bmd_y">Bending Moment My (3D)</option>
+              <option value="torsion">Torsion T (3D)</option>
+            </optgroup>
+          </select>
+        </section>
+
+        <!-- Force overlay -->
+        <section class="panel-section">
+          <h3 class="section-title">Overlays</h3>
+          <label class="chk"><input id="chk-reactions" type="checkbox" checked /> Reaction Forces</label>
+          <label class="chk"><input id="chk-applied" type="checkbox" /> Applied Loads</label>
+          <label class="chk"><input id="chk-node-id-post" type="checkbox" /> Node IDs</label>
+          <label class="chk"><input id="chk-ele-id-post" type="checkbox" /> Element IDs</label>
+        </section>
+
+        <!-- Results table -->
+        <section class="panel-section">
+          <h3 class="section-title">Node Results</h3>
+          <div id="results-table-wrap" class="results-table-wrap">
+            <p class="muted">Run analysis to see results.</p>
+          </div>
+        </section>
+      </div>
+
+    </aside>
+
+    <!-- ── Canvas area ── -->
+    <div id="canvas-wrap">
+      <canvas id="feps-canvas"></canvas>
+      <!-- Color bar overlay (post-process) -->
+      <div id="color-bar" class="color-bar hidden"></div>
+    </div>
+
+  </main>
+
+  <!-- ═══ STATUS BAR ═══ -->
+  <footer id="status-bar">
+    <span id="status-msg">Ready</span>
+    <span id="status-cursor"></span>
+    <span id="status-version">FEPS v0.1 &nbsp;|&nbsp; Minho Kwon &nbsp;|&nbsp; Dept. of Civil Engineering, Gyeongsang National University</span>
+  </footer>
+
+  <!-- Hidden file input -->
+  <input type="file" id="file-input" accept=".inp" style="display:none" />
+
+  <!-- ═══ POPUP: Assign Material/Property ═══ -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div id="modal-matprop" class="modal-dialog hidden">
+      <h3>Assign Material &amp; Property</h3>
+      <p id="modal-mp-info" class="muted"></p>
+      <div class="field-row">
+        <label>Material ID</label>
+        <select id="dlg-mat" class="combo"></select>
+      </div>
+      <div class="field-row">
+        <label>Property ID</label>
+        <select id="dlg-prop" class="combo"></select>
+      </div>
+      <div class="modal-actions">
+        <button id="dlg-mp-ok" class="panel-btn accent">Apply</button>
+        <button id="dlg-mp-cancel" class="panel-btn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ═══ POPUP: Assign BC/Load ═══ -->
+    <div id="modal-bcload" class="modal-dialog hidden">
+      <h3>Assign Boundary Condition &amp; Load</h3>
+      <p id="modal-bc-info" class="muted"></p>
+      <fieldset class="modal-fieldset">
+        <legend>Boundary Condition — Fix DOF / Displacement Load (non-zero = prescribed disp.)</legend>
+        <div id="dlg-bc-checks-wrap" class="bc-checks"></div>
+      </fieldset>
+      <fieldset class="modal-fieldset">
+        <legend>Nodal Load</legend>
+        <div id="dlg-bc-load-wrap"></div>
+      </fieldset>
+      <div class="modal-actions">
+        <button id="dlg-bc-ok" class="panel-btn accent">Apply</button>
+        <button id="dlg-bc-cancel" class="panel-btn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ═══ POPUP: Node Editor (coordinates + BC + load) ═══ -->
+    <div id="modal-nodecoord" class="modal-dialog hidden" style="width:290px">
+      <h3>Node Editor</h3>
+      <p id="modal-nc-info" class="muted"></p>
+
+      <fieldset class="modal-fieldset">
+        <legend>Coordinates</legend>
+        <div class="field-row">
+          <label>X</label>
+          <input id="dlg-nc-x" type="number" step="any" value="0" />
+        </div>
+        <div class="field-row">
+          <label>Y</label>
+          <input id="dlg-nc-y" type="number" step="any" value="0" />
+        </div>
+        <div class="field-row">
+          <label>Z</label>
+          <input id="dlg-nc-z" type="number" step="any" value="0" />
+        </div>
+      </fieldset>
+
+      <fieldset class="modal-fieldset">
+        <legend>Boundary Condition — Fix DOF / Displacement Load</legend>
+        <div id="dlg-nc-bc-wrap" class="bc-checks"></div>
+      </fieldset>
+
+      <fieldset class="modal-fieldset">
+        <legend>Nodal Load</legend>
+        <div id="dlg-nc-load-wrap"></div>
+      </fieldset>
+
+      <div class="modal-actions">
+        <button id="dlg-nc-ok" class="panel-btn accent">Apply</button>
+        <button id="dlg-nc-cancel" class="panel-btn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ═══ POPUP: Element Editor ═══ -->
+    <div id="modal-elem" class="modal-dialog hidden" style="width:310px">
+      <h3>Element Editor</h3>
+      <p id="modal-elem-info" class="muted"></p>
+
+      <div class="field-row">
+        <label>Element ID</label>
+        <span id="dlg-elem-id" class="field-val"></span>
+      </div>
+
+      <div class="field-row">
+        <label>Type</label>
+        <select id="dlg-elem-type" class="combo"></select>
+      </div>
+
+      <fieldset class="modal-fieldset">
+        <legend>Nodes</legend>
+        <div id="dlg-elem-nodes-wrap"></div>
+      </fieldset>
+
+      <div class="field-row">
+        <label>Material</label>
+        <select id="dlg-elem-mat" class="combo"></select>
+      </div>
+
+      <div class="field-row">
+        <label>Property</label>
+        <select id="dlg-elem-prop" class="combo"></select>
+      </div>
+
+      <!-- Uniform distributed load (eload) — shown for beam/bar/solid types -->
+      <fieldset class="modal-fieldset" id="dlg-eload-wrap">
+        <legend id="dlg-eload-legend">Uniform Dist. Load (local frame)</legend>
+        <div class="field-row" id="dlg-eload-wx-row">
+          <label>w<sub>x</sub> (axial)</label>
+          <input id="dlg-eload-wx" type="number" value="0" step="any" />
+        </div>
+        <div class="field-row" id="dlg-eload-wy-row">
+          <label>w<sub>y</sub> (transv.)</label>
+          <input id="dlg-eload-wy" type="number" value="0" step="any" />
+        </div>
+        <div class="field-row" id="dlg-eload-wz-row">
+          <label>w<sub>z</sub> (3D)</label>
+          <input id="dlg-eload-wz" type="number" value="0" step="any" />
+        </div>
+        <div class="field-row">
+          <label>ΔT (temp)</label>
+          <input id="dlg-eload-temp" type="number" value="0" step="any"
+            title="Temperature difference (used for thermal expansion: α·ΔT)" />
+        </div>
+      </fieldset>
+
+      <!-- Trapezoidal surface/distributed load (esurf) — beam types -->
+      <fieldset class="modal-fieldset" id="dlg-esurf-beam-wrap">
+        <legend>Trapez. Dist. Load (local frame)</legend>
+        <div class="field-row">
+          <label>w<sub>y1</sub> (n1)</label>
+          <input id="dlg-esurf-wy1" type="number" value="0" step="any"
+            title="Transverse load intensity at node 1 (local y). Positive = local +y direction." />
+        </div>
+        <div class="field-row">
+          <label>w<sub>y2</sub> (n2)</label>
+          <input id="dlg-esurf-wy2" type="number" value="0" step="any"
+            title="Transverse load intensity at node 2 (local y)." />
+        </div>
+        <div id="dlg-esurf-3d-rows">
+          <div class="field-row">
+            <label>w<sub>z1</sub> (n1)</label>
+            <input id="dlg-esurf-wz1" type="number" value="0" step="any"
+              title="Transverse load at node 1 (local z, BEAM3D only)." />
+          </div>
+          <div class="field-row">
+            <label>w<sub>z2</sub> (n2)</label>
+            <input id="dlg-esurf-wz2" type="number" value="0" step="any"
+              title="Transverse load at node 2 (local z, BEAM3D only)." />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Edge surface traction (esurf) — solid types -->
+      <fieldset class="modal-fieldset" id="dlg-esurf-solid-wrap">
+        <legend>Edge Traction (global frame)</legend>
+        <div class="field-row">
+          <label>Side</label>
+          <input id="dlg-esurf-side" type="number" value="1" step="1" min="1" max="4"
+            title="Edge number (1-based, CCW order: QUAD4 sides 1-4, TRIG3 sides 1-3)" />
+        </div>
+        <div class="field-row">
+          <label>q<sub>x1</sub> q<sub>y1</sub></label>
+          <input id="dlg-esurf-qx1" type="number" value="0" step="any" class="inp-half"
+            title="Global x-traction at start node of side" />
+          <input id="dlg-esurf-qy1" type="number" value="0" step="any" class="inp-half"
+            title="Global y-traction at start node of side" />
+        </div>
+        <div class="field-row">
+          <label>q<sub>x2</sub> q<sub>y2</sub></label>
+          <input id="dlg-esurf-qx2" type="number" value="0" step="any" class="inp-half"
+            title="Global x-traction at end node of side" />
+          <input id="dlg-esurf-qy2" type="number" value="0" step="any" class="inp-half"
+            title="Global y-traction at end node of side" />
+        </div>
+        <button id="dlg-esurf-add-face" class="panel-btn" style="margin-top:4px">Add / Update Face</button>
+        <div id="dlg-esurf-face-list" class="esurf-face-list"></div>
+      </fieldset>
+
+      <div class="modal-actions">
+        <button id="dlg-elem-ok" class="panel-btn accent">Apply</button>
+        <button id="dlg-elem-cancel" class="panel-btn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ═══ POPUP: Analysis Output ═══ -->
+    <div id="modal-output" class="modal-dialog hidden" style="width:600px;max-width:92vw">
+      <h3>Analysis Output</h3>
+      <pre id="output-text" style="max-height:440px;overflow:auto;background:#1a1a2e;color:#d4e0f7;padding:10px 14px;border-radius:4px;font-size:11px;line-height:1.55;white-space:pre;margin:0 0 12px;font-family:monospace"></pre>
+      <div class="modal-actions">
+        <button id="btn-output-copy" class="panel-btn">Copy</button>
+        <button id="btn-output-download" class="panel-btn">Download .txt</button>
+        <button id="btn-output-close" class="panel-btn accent">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Element Code Editor — 독립 오버레이 (별도 z-layer) ═══ -->
+  <div id="modal-editor-overlay" class="modal-overlay hidden">
+    <div id="modal-elem-editor" class="modal-dialog ee-dialog">
+      <h3 style="margin:0 0 10px;display:flex;align-items:center;gap:8px">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="2" y="3" width="14" height="12" rx="1"/>
+          <path d="M5 8l-2 2 2 2M13 8l2 2-2 2M9 5l-1.5 7" stroke-linecap="round"/>
+        </svg>
+        요소 코드 에디터 (Element Code Editor)
+        <span style="margin-left:auto;font-size:11px;font-weight:400;color:var(--text-dim)">
+          형상함수·구성방정식 작성 후 [등록] 클릭
+        </span>
+      </h3>
+
+      <!-- 템플릿 선택 + 옵션 행 -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--text-dim)">템플릿:</label>
+        <select id="ee-template" class="tb-combo" style="flex:1;min-width:180px">
+          <option value="">── 템플릿 선택 ──</option>
+          <optgroup label="2D 고체 (평면응력/변형률)">
+            <option value="quad5">QUAD5 — 5절점 사각형 (버블 함수)</option>
+            <option value="quad8">QUAD8 — 8절점 세렌디피티</option>
+            <option value="quad9">QUAD9 — 9절점 라그랑지</option>
+            <option value="trig6">TRIG6 — 6절점 삼각형</option>
+          </optgroup>
+          <optgroup label="1D 봉 요소">
+            <option value="bar2_3n">BAR2_3N — 3절점 2D 봉</option>
+          </optgroup>
+          <optgroup label="2D 티모셴코 보">
+            <option value="timbeam2n">TIMBEAM2D_2N — 2절점 티모셴코</option>
+            <option value="timbeam3n">TIMBEAM2D_3N — 3절점 티모셴코</option>
+          </optgroup>
+          <optgroup label="빈 템플릿">
+            <option value="blank_solid">빈 템플릿 — solid2d</option>
+            <option value="blank_bar">빈 템플릿 — bar1d</option>
+            <option value="blank_beam">빈 템플릿 — beam2d_tim</option>
+          </optgroup>
+        </select>
+        <button id="ee-load-tpl" class="panel-btn" style="white-space:nowrap">불러오기</button>
+        <div class="tb-sep" style="height:22px"></div>
+        <button id="ee-register" class="panel-btn accent" style="white-space:nowrap">▶ 등록 (Register)</button>
+        <button id="ee-clear-code" class="panel-btn" style="white-space:nowrap">초기화</button>
+      </div>
+
+      <!-- 코드 에디터 영역 -->
+      <div class="ee-body">
+        <!-- 좌측: 코드 입력 -->
+        <div class="ee-col-code">
+          <div class="ee-label">코드 입력 (JavaScript)</div>
+          <textarea id="ee-code" spellcheck="false" autocorrect="off" autocapitalize="off"
+            placeholder="// 템플릿을 선택하거나 직접 코드를 작성하세요.&#10;// FepsElementRegistry.register({ ... }) 를 호출하면 등록됩니다."></textarea>
+        </div>
+
+        <!-- 우측: 등록된 요소 목록 + 로그 -->
+        <div class="ee-col-right">
+          <div>
+            <div class="ee-label">등록된 요소 <span style="font-size:10px;opacity:.7">(💾=저장됨)</span></div>
+            <div id="ee-elem-list">
+              <span style="color:var(--text-dim)">(없음)</span>
+            </div>
+          </div>
+          <div class="ee-log-wrap">
+            <div class="ee-label">실행 로그</div>
+            <div id="ee-log"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 버튼 -->
+      <div class="ee-footer">
+        <!-- 파일 I/O -->
+        <button id="ee-export" class="panel-btn" title="현재 코드를 .js 파일로 로컬 저장">💾 내보내기</button>
+        <button id="ee-import" class="panel-btn" title="로컬 .js 파일을 에디터에 불러오기">📂 파일 열기</button>
+        <input id="ee-file-input" type="file" accept=".js,.txt" style="display:none">
+        <!-- 구분 -->
+        <div style="flex:1"></div>
+        <!-- 관리 -->
+        <button id="ee-clear-all" class="panel-btn" style="color:var(--danger)" title="localStorage 저장 데이터 삭제 후 페이지 새로고침">🗑️ 저장 초기화</button>
+        <button id="ee-close" class="panel-btn accent">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Debug Viewer — 독립 오버레이 ═══ -->
+  <div id="modal-debug-overlay" class="modal-overlay hidden">
+    <div id="modal-debug" class="modal-dialog dbg-dialog">
+
+      <!-- ── 헤더 ── -->
+      <div class="dbg-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
+            <circle cx="9" cy="9" r="6"/>
+            <line x1="9" y1="6" x2="9" y2="9.5"/>
+            <circle cx="9" cy="12.5" r="1" fill="currentColor" stroke="none"/>
+          </svg>
+          <span style="font-weight:600;font-size:15px">FEA 디버그 뷰어</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <label for="dbg-elem-select" style="font-size:12px;color:var(--text-dim);white-space:nowrap">요소 선택:</label>
+          <select id="dbg-elem-select" class="tb-combo" style="min-width:220px;max-width:360px">
+            <option value="">— 요소를 선택하세요 —</option>
+          </select>
+          <button id="dbg-close" class="panel-btn">✕ 닫기</button>
+        </div>
+      </div>
+
+      <!-- ── 탭 버튼 ── -->
+      <div class="dbg-tabs">
+        <button class="dbg-tab-btn active" data-tab="summary">요약</button>
+        <button class="dbg-tab-btn" data-tab="ke">K_e &nbsp;강성행렬</button>
+        <button class="dbg-tab-btn" data-tab="ue">u_e &nbsp;절점변위</button>
+        <button class="dbg-tab-btn" data-tab="fe">f_e &nbsp;절점력</button>
+        <button class="dbg-tab-btn" data-tab="kglob">전체 K</button>
+      </div>
+
+      <!-- ── 탭 패널 ── -->
+      <div class="dbg-panes">
+        <div id="dbg-pane-summary" class="dbg-pane">
+          <p class="dbg-hint">해석을 실행하면 여기에 모델 자유도 정보가 표시됩니다.</p>
+        </div>
+        <div id="dbg-pane-ke" class="dbg-pane hidden">
+          <p class="dbg-hint">좌측 헤더의 요소 선택 드롭다운에서 요소를 선택하세요.</p>
+        </div>
+        <div id="dbg-pane-ue" class="dbg-pane hidden">
+          <p class="dbg-hint">좌측 헤더의 요소 선택 드롭다운에서 요소를 선택하세요.</p>
+        </div>
+        <div id="dbg-pane-fe" class="dbg-pane hidden">
+          <p class="dbg-hint">좌측 헤더의 요소 선택 드롭다운에서 요소를 선택하세요.</p>
+        </div>
+        <div id="dbg-pane-kglob" class="dbg-pane hidden">
+          <p class="dbg-hint">해석을 실행하면 전체 강성행렬이 표시됩니다 (nDOF ≤ 200 조건).</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ HELP MODAL ═══ -->
+  <!-- Scripts: 레지스트리 + 코어 먼저 로드 -->
+  <script src="js/element-registry.js"></script>
+  <script src="js/element-core.js"></script>
+  <!-- 기본 제공 학생 요소들 -->
+  <script src="js/elements/quad5.js"></script>
+  <script src="js/elements/quad8.js"></script>
+  <script src="js/elements/quad9.js"></script>
+  <script src="js/elements/trig6.js"></script>
+  <script src="js/elements/bar2_3N.js"></script>
+  <script src="js/elements/TimBeam2D_2N.js"></script>
+  <script src="js/elements/TimBeam2D_3N.js"></script>
+  <!-- 기존 스크립트 -->
+  <script src="js/parser.js"></script>
+  <script src="js/solver.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/mesher.js"></script>
+  <script src="js/main.js"></script>
+  <!-- 요소 에디터 UI 로직 -->
+  <script src="js/element-editor-ui.js"></script>
+  <!-- 디버그 모드: 데이터 수집기 → UI (순서 중요) -->
+  <script src="js/element-debug.js"></script>
+  <script src="js/element-debug-ui.js"></script>
+  <!-- Help 버튼: 새 창으로 help.html 열기 -->
+  <script>
+    document.getElementById('btn-help').addEventListener('click', function () {
+      window.open('help.html', 'feps-help');
+    });
+  </script>
+</body>
+
+</html>

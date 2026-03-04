@@ -1,0 +1,38 @@
+# FEPS Example 03: Portal Frame (BEAM2D + uniform distributed load)
+# Structure: 2 columns + 1 beam, both columns fixed at base
+# Units: kN, m
+#
+# Geometry:
+#   Node 1 = (0, 0)  fixed base-left
+#   Node 2 = (0, 4)  top-left
+#   Node 3 = (6, 4)  top-right
+#   Node 4 = (6, 0)  fixed base-right
+#
+# Material: E=210000 MPa -> 2.1e8 kN/m^2, nu=0.3
+# Section : W200x46 approx -> A=0.00587 m^2, Iz=4.53e-5 m^4
+#
+# Load: Beam (elem 2) uniform downward load wy = -20 kN/m
+#
+# Elements:
+#   Elem 1: column left  (node 1->2)
+#   Elem 2: beam         (node 2->3), wy1=wy2=-20
+#   Elem 3: column right (node 3->4)
+#
+4 3 2
+1   0.0   0.0
+2   0.0   4.0
+3   6.0   4.0
+4   6.0   0.0
+1
+1  2.1e8  0.3
+1
+1  0.00587  1.0  4.53e-5  0.0  0.0  0.0
+3
+BEAM2D  1  1  1  1  2   0    0    0
+BEAM2D  2  1  1  2  3   0  -20  -20
+BEAM2D  3  1  1  3  4   0    0    0
+4
+1  1  1  1   0.0   0.0   0.0   0.0   0.0   0.0
+2  0  0  0   0.0   0.0   0.0   0.0   0.0   0.0
+3  0  0  0   0.0   0.0   0.0   0.0   0.0   0.0
+4  1  1  1   0.0   0.0   0.0   0.0   0.0   0.0

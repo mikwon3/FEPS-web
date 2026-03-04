@@ -1,0 +1,90 @@
+**********************************************************************
+*     FEPS (Finite Element Analysis Program for General Structure)   *
+*     Author: Minho Kwon, Sept. 2025 implemented as Python           *
+*             Ported to C# .NET 10                                  *
+*             for graduate course in Dept. of Civil Engineering      *
+*             Gyeongsang National University, Jinju, Korea.          *
+**********************************************************************
+
+
+
+ Input file name: 3dbeam-test.inp
+
+
+  === Node Definition Data ===
+  Node     x-coord     y-coord     z-coord
+     1      -3.000       3.000       3.000
+     2      -3.000       3.000       0.000
+     3       3.000       3.000       0.000
+     4      -3.000      -3.000       0.000
+
+  === Material Definition Data ===
+   Code  El.modulus  Pois.ratio
+    1     1.999e+08      0.300
+
+  ==== Property Definition Data ====
+   Code    Bar-area  Plate-thickness       Alpha        Iyy         Izz           J
+     1    4.265e-03    1.000e+00       1.170e-05    9.651e-08    3.301e-06    6.600e-05
+
+  ====== Element Definition Data ======
+  Type      Number   Mcode Pcode  Angle       Node-list ....
+  BEAM3D       1       1     1   0.000e+00      1      2
+  BEAM3D       2       1     1   0.000e+00      1      3
+  BEAM3D       3       1     1   0.000e+00      1      4
+
+  Type      Number                      Element Loads
+                           wx          wy          wz     Temperature
+  BEAM3D      1        0.000e+00   0.000e+00   0.000e+00               0.000e+00
+  BEAM3D      2        0.000e+00   0.000e+00   0.000e+00               0.000e+00
+  BEAM3D      3        0.000e+00   0.000e+00   0.000e+00               0.000e+00
+
+  ========= Nodal Boundary Conditions and Nodal Load Data =======
+  1. Prescribed Nodal Loads
+  Node  x-BCtag y-BCtag z-BCtag  thx-BC  thy-BC  thz-BC                 Prescribed
+                                                         Fx         Fy         Fz         Mxx        Myy        Mzz
+    1    0.000    0.000    0.000    0.000    0.000    0.000  1.000e+02  5.000e+01  3.000e+01  0.000e+00  0.000e+00  0.000e+00
+    2    1.000    1.000    1.000    1.000    1.000    1.000  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00
+    3    1.000    1.000    1.000    1.000    1.000    1.000  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00
+    4    1.000    1.000    1.000    1.000    1.000    1.000  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00
+
+  2. Prescribed Displacement
+  Node  x-BCtag y-BCtag z-BCtag  thx-BC  thy-BC  thz-BC                 Prescribed
+                                                         Ux         Uy         Uz         Rxx        Ryy        Rzz
+    1   0.000    0.000    0.000    0.000    0.000    0.000   0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00
+    2   1.000    1.000    1.000    1.000    1.000    1.000   0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00
+    3   1.000    1.000    1.000    1.000    1.000    1.000   0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00
+    4   1.000    1.000    1.000    1.000    1.000    1.000   0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00  0.000e+00
+
+ Eigenvalues of Kff - master stiffness matrix:
+             1             2             3             4             5             6
+   1     5.929e+02     1.910e+03     2.415e+03     8.148e+04     1.019e+05     3.555e+05
+
+  --------- Computed  Node Displacements  -------
+  Node   x-coord    y-coord     z-coord     x-displ      y-displ      z-displ     x-angle     y-angle     z-angle
+     1  -3.000e+00   3.000e+00   3.000e+00   1.080e-03   3.941e-04   1.936e-04  -9.855e-05   3.787e-05  -2.549e-05
+     2  -3.000e+00   3.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00
+     3   3.000e+00   3.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00
+     4  -3.000e+00  -3.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00   0.000e+00
+  ------------ Computed Node Forces -------------
+  Node   x-coord    y-coord     z-coord     x-force      y-force      z-force     x-moment    y-moment    z-moment
+     1  -3.000e+00   3.000e+00   3.000e+00   1.000e+02   5.000e+01   3.000e+01   0.000e+00   0.000e+00   0.000e+00
+     2  -3.000e+00   3.000e+00   0.000e+00  -8.775e-03  -7.226e-02  -5.502e+01   1.301e-01  -1.341e-02   4.313e-02
+     3   3.000e+00   3.000e+00   0.000e+00  -9.999e+01  -4.456e-03   4.999e+01   6.156e-02  -1.470e-03  -6.714e-03
+     4  -3.000e+00  -3.000e+00   0.000e+00  -7.262e-04  -4.992e+01  -2.497e+01  -1.912e-02  -1.635e-02  -5.324e-03
+
+ --------- Beam Section Forces Information---------
+ Type   Number  Node      Force-Local_x   Force-Local_y     Force-Local_z
+                            Moment_xx       Moment_yy         Moment_zz
+ BEAM3D      1      1      -5.502e+01       7.226e-02       8.775e-03
+                            4.313e-02      -1.292e-02       8.670e-02
+                    2       5.502e+01      -7.226e-02      -8.775e-03
+                           -4.313e-02      -1.341e-02       1.301e-01
+ BEAM3D      2      1       1.118e+02       4.456e-03       4.059e-04
+                           -5.807e-02      -1.252e-03       8.367e-03
+                    3      -1.118e+02      -4.456e-03      -4.059e-04
+                            5.807e-02      -1.470e-03       2.153e-02
+ BEAM3D      3      1      -5.582e+01      -8.590e-03       7.262e-04
+                           -1.700e-02      -2.321e-03      -3.851e-02
+                    4       5.582e+01       8.590e-03      -7.262e-04
+                            1.700e-02      -2.550e-03      -1.912e-02
+
