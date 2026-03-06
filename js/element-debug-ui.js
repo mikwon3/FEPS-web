@@ -72,7 +72,20 @@
         _populateElemSelect(data);
         _renderSummary(data);
         _renderKGlobal(data);
-        _switchTab('summary');
+
+        // 첫 번째 요소를 자동 선택하고 K_e / u_e / f_e 를 미리 렌더링
+        const eids = Object.keys(data.elements);
+        if (eids.length > 0 && selElem) {
+            selElem.value = eids[0];
+            const el = data.elements[eids[0]];
+            if (el) {
+                _renderKe(el);
+                _renderUe(el);
+                _renderFe(el);
+            }
+        }
+
+        _switchTab('summary');  // 뷰어는 항상 [요약] 탭으로 열기
         if (overlay) overlay.classList.remove('hidden');
     }
 
@@ -127,6 +140,8 @@
         _renderKe(el);
         _renderUe(el);
         _renderFe(el);
+        // 현재 활성 탭을 그대로 유지 — 탭 전환 없음
+        // (ke·ue·fe 콘텐츠는 백그라운드에서 갱신 완료)
     });
 
     // ── 탭별 렌더러 ──────────────────────────────────────────────────────
@@ -162,7 +177,7 @@
         if (!p) return;
         const label = `K_e — ${el.typ} (요소 E${el.nodes[0]}…, ${el.Ke.length}×${el.Ke.length})`;
         _renderMatrix(p, el.Ke, label, el.eft);
-        _switchTab('ke');
+        // 탭 전환은 호출자(selElem.change)가 담당
     }
 
     /** u_e 탭 */
@@ -186,8 +201,37 @@
         const p = panesMap.kglob;
         if (!p) return;
         if (data.K_global) {
+            const contrib = _buildElemContrib(data);
+
+            // 전역 DOF 쌍 (i, j) → 배경 스타일 문자열 반환
+            const getCellStyle = (gi, gj) => {
+                const owners = contrib.ownerMap[`${gi}_${gj}`];
+                if (!owners || owners.length === 0) return '';
+                if (owners.length === 1)
+                    return `background:${contrib.bgColors[owners[0]]}`;
+                // 복수 요소 기여 → 45° 사선 2색 그라디언트
+                const c0 = contrib.bgColors[owners[0]];
+                const c1 = contrib.bgColors[owners[1]];
+                return `background:linear-gradient(135deg,${c0} 50%,${c1} 50%)`;
+            };
+
             _renderMatrix(p, data.K_global,
-                `전체 강성행렬 K (${data.nd}×${data.nd})  — BC 적용 전`);
+                `전체 강성행렬 K (${data.nd}×${data.nd})  — BC 적용 전`,
+                null, getCellStyle);
+
+            // 요소 색상 범례
+            let legend = '<div class="dbg-legend">'
+                + '<span class="dbg-legend-label">요소 범례:</span>';
+            for (const eid of contrib.eids) {
+                const el = data.elements[eid];
+                legend += `<span class="dbg-legend-item"`
+                    + ` style="background:${contrib.bgColors[eid]};`
+                    + `border-color:${contrib.fgColors[eid]};`
+                    + `color:${contrib.fgColors[eid]}">`
+                    + `E${eid} · ${_esc(el.typ)}</span>`;
+            }
+            legend += '</div>';
+            p.insertAdjacentHTML('beforeend', legend);
         } else {
             p.innerHTML = `<p class="dbg-warn">
                 ⚠️ nDOF = ${data.nd}  >  200 이므로 전체 K는 저장되지 않았습니다.<br>
@@ -196,16 +240,50 @@
         }
     }
 
+    /**
+     * 요소별 기여 DOF 쌍 맵 및 색상 생성
+     * ownerMap[`${gi}_${gj}`] = [eid, ...]  — 해당 셀에 기여한 요소 목록
+     */
+    function _buildElemContrib(data) {
+        const eids = Object.keys(data.elements);
+        const n    = eids.length;
+
+        // 요소별 색상 — HSL 색상환에서 균등 분포
+        const bgColors = {};   // 반투명 배경
+        const fgColors = {};   // 불투명 전경 (범례 텍스트·테두리)
+        eids.forEach((eid, idx) => {
+            const hue = Math.round((idx / Math.max(n, 1)) * 360);
+            bgColors[eid] = `hsla(${hue},75%,58%,0.28)`;
+            fgColors[eid] = `hsl(${hue},80%,72%)`;
+        });
+
+        // 전역 DOF 쌍 → 기여 요소 목록 (sparse)
+        const ownerMap = {};
+        for (const eid of eids) {
+            const eft = data.elements[eid].eft;
+            for (const gi of eft) {
+                for (const gj of eft) {
+                    const key = `${gi}_${gj}`;
+                    if (!ownerMap[key]) ownerMap[key] = [];
+                    ownerMap[key].push(eid);
+                }
+            }
+        }
+
+        return { eids, bgColors, fgColors, ownerMap };
+    }
+
     // ── 공통 렌더 유틸리티 ───────────────────────────────────────────────
 
     /**
      * 행렬을 스크롤 가능한 HTML 테이블로 렌더링
-     * @param {HTMLElement} container
-     * @param {number[][]}  M       행렬 데이터
-     * @param {string}      title
-     * @param {number[]}    [eft]   행/열 헤더에 표시할 전역 자유도 번호
+     * @param {HTMLElement}  container
+     * @param {number[][]}   M              행렬 데이터
+     * @param {string}       title
+     * @param {number[]}     [eft]          행/열 헤더에 표시할 전역 자유도 번호
+     * @param {Function}     [getCellStyle] (gi, gj) → inline style 문자열 (선택)
      */
-    function _renderMatrix(container, M, title, eft) {
+    function _renderMatrix(container, M, title, eft, getCellStyle) {
         if (!container || !M || !M.length) return;
         const n = M.length;
 
@@ -225,11 +303,15 @@
         for (let i = 0; i < n; i++) {
             html += `<tr><th class="dbg-idx">${eft ? eft[i] : i}</th>`;
             for (let j = 0; j < n; j++) {
-                const v = M[i] ? M[i][j] : 0;
+                const v      = M[i] ? M[i][j] : 0;
                 const isDiag = (i === j);
                 const isZero = Math.abs(v) < 1e-14;
-                const cls = isZero ? 'dbg-zero' : isDiag ? 'dbg-diag' : '';
-                html += `<td class="${cls}">${_fmt(v)}</td>`;
+                const cls    = isZero ? 'dbg-zero' : isDiag ? 'dbg-diag' : '';
+                // 전역 DOF 인덱스로 배경색 조회 (getCellStyle 미전달 시 스킵)
+                const gi  = eft ? eft[i] : i;
+                const gj  = eft ? eft[j] : j;
+                const sty = getCellStyle ? getCellStyle(gi, gj) : '';
+                html += `<td class="${cls}"${sty ? ` style="${sty}"` : ''}>${_fmt(v)}</td>`;
             }
             html += '</tr>';
         }

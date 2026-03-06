@@ -313,13 +313,14 @@
 
           <!-- Mesh polygon (only relevant when 2D type is selected) -->
           <div class="field-row" style="margin-top:6px;gap:4px;align-items:center">
-            <label style="min-width:30px" title="x·y 방향 메시 분할 수를 각각 지정합니다">Div</label>
-            <span style="font-size:11px;color:var(--text-dim)">X</span>
-            <input id="mesh-div-x" type="number" min="1" max="200" value="4" style="width:46px"
-              title="x방향 분할 수 (가로 셀 수). 폴리곤 너비를 이 수만큼 균등 분할합니다." />
-            <span style="font-size:11px;color:var(--text-dim)">Y</span>
-            <input id="mesh-div-y" type="number" min="1" max="200" value="4" style="width:46px"
-              title="y방향 분할 수 (세로 셀 수). 폴리곤 높이를 이 수만큼 균등 분할합니다." />
+            <label style="min-width:50px;font-size:11px" title="목표 요소 크기 (모델 단위). 비워 두면 경계 박스 대각선/8로 자동 설정.">Edge len</label>
+            <input id="mesh-edge-len" type="number" min="0" step="any" value=""
+              style="flex:1;min-width:0"
+              title="Target element edge length (model units). Leave blank for auto." />
+            <label style="font-size:11px;color:var(--text-dim);white-space:nowrap">Smooth</label>
+            <input id="mesh-smooth" type="number" min="0" max="20" value="3"
+              style="width:36px"
+              title="Laplacian smoothing iterations (0 = off, recommended 3-5)" />
           </div>
           <div class="field-row" style="gap:4px">
             <button id="btn-mesh-poly" class="panel-btn" style="flex:1" disabled>Mesh Polygon</button>
@@ -835,6 +836,7 @@
   <script src="js/solver.js"></script>
   <script src="js/renderer.js"></script>
   <script src="js/mesher.js"></script>
+  <script src="js/mesher2.js"></script>
   <script src="js/main.js"></script>
   <!-- 요소 에디터 UI 로직 -->
   <script src="js/element-editor-ui.js"></script>

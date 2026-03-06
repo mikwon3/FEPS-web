@@ -946,15 +946,27 @@ input[type="range"] {
    Debug Viewer — 디버그 뷰어 모달 (element-debug-ui.js)
    ======================================================================== */
 
+/* ── 디버그 오버레이: 리사이즈 후 스크롤 지원 ── */
+#modal-debug-overlay {
+  align-items: flex-start;
+  padding: 4vh 0;
+  overflow: auto;
+}
+
 /* ── 디버그 대화상자 ── */
 .dbg-dialog {
-  width: min(92vw, 1000px);
-  max-height: 88vh;
+  width: min(92vw, 900px);      /* .modal-dialog max-width:440px 의 약 2배 */
+  max-width: none;              /* .modal-dialog 의 max-width:440px 덮어쓰기 */
+  min-width: 480px;
+  height: min(86vh, 820px);
+  min-height: 320px;
+  margin: 0 auto;               /* 오버레이 내 수평 중앙 정렬 */
   display: flex;
   flex-direction: column;
   gap: 0;
   padding: 0;
   overflow: hidden;
+  resize: both;                 /* 마우스 드래그로 크기 조정 */
 }
 
 /* ── 헤더 (드롭다운 + 닫기) ── */
@@ -1145,6 +1157,33 @@ span.dbg-zero {
   font-size: 12px;
   padding: 10px 14px;
   line-height: 1.55;
+}
+
+/* ── 전체 K 요소 색상 범례 ── */
+.dbg-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+.dbg-legend-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.dbg-legend-item {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 3px;
+  border: 1px solid;
+  white-space: nowrap;
 }
 
 /* ── 디버그 툴바 버튼 (active = ON 상태 강조) ── */

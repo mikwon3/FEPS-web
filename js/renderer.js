@@ -347,12 +347,15 @@ const FepsRenderer = (() => {
         // Node symbols & labels
         drawNodes(!!showDef);
 
-        // Polygon-in-progress
+        // 확정된 외곽 폴리곤 + 홀 (항상 표시)
+        drawClosedPolygons();
+
+        // 그리기 중인 폴리곤 (클릭 진행 중)
         if (_polygonPts && _polygonPts.length > 0) {
             drawPolygon();
         }
 
-        // Hole shape preview (rect/circle drag)
+        // 홀 드래그 미리보기 (rect/circle)
         if (_holePreviewPts && _holePreviewPts.length > 0) {
             drawHolePreview();
         }
@@ -2182,7 +2185,11 @@ const FepsRenderer = (() => {
     let _polygonPts = [];
     let _closePolygon = true;   // false = open polyline (for BEAM/BAR chains)
     let _selectedNode = null;
-    let _holePreviewPts = null; // polygon preview for rect/circle hole drag
+    let _holePreviewPts = null; // polygon preview for rect/circle hole drag (드래그 중)
+
+    // 확정된 외곽 폴리곤 / 홀 — setDrawMode(true)로 _polygonPts가 초기화돼도 유지
+    let _closedPolygon = null;  // {x,y}[]   — 확정된 외곽 경계
+    let _closedHoles   = [];    // {x,y}[][] — 확정된 홀 목록
 
     function setSelectedNode(nid) { _selectedNode = nid; }
     function getPolygonPts() { return _polygonPts; }
@@ -2190,6 +2197,67 @@ const FepsRenderer = (() => {
     function addPolygonPt(mx, my) { _polygonPts.push({ x: mx, y: my }); }
     function setClosePolygon(flag) { _closePolygon = !!flag; }
     function setHolePreview(pts) { _holePreviewPts = pts || null; }
+
+    /** 외곽 폴리곤 확정 저장 (null 전달 시 초기화) */
+    function setClosedPolygon(pts) {
+        _closedPolygon = pts ? pts.map(p => ({ x: p.x, y: p.y })) : null;
+    }
+    /** 완성된 홀 하나 추가 */
+    function addClosedHole(pts) {
+        if (pts && pts.length >= 3)
+            _closedHoles.push(pts.map(p => ({ x: p.x, y: p.y })));
+    }
+    /** 외곽 폴리곤 + 모든 홀 초기화 (메시 생성 후 / 새 모델) */
+    function clearClosedPolygon() {
+        _closedPolygon = null;
+        _closedHoles   = [];
+    }
+
+    /** 확정된 외곽 폴리곤 + 홀 목록을 항상 표시 */
+    function drawClosedPolygons() {
+        if (!_closedPolygon && _closedHoles.length === 0) return;
+        ctx.save();
+
+        // 외곽 폴리곤 — 주황 실선 + 반투명 채우기
+        if (_closedPolygon && _closedPolygon.length >= 2) {
+            ctx.strokeStyle = '#FF6F00';
+            ctx.fillStyle   = 'rgba(255,111,0,0.07)';
+            ctx.lineWidth   = 2;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            const p0 = toScreen(_closedPolygon[0].x, _closedPolygon[0].y);
+            ctx.moveTo(p0.x, p0.y);
+            for (let i = 1; i < _closedPolygon.length; i++) {
+                const p = toScreen(_closedPolygon[i].x, _closedPolygon[i].y);
+                ctx.lineTo(p.x, p.y);
+            }
+            if (_closedPolygon.length > 2) ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // 홀 — 빨간 점선 + 반투명 채우기
+        for (const hole of _closedHoles) {
+            if (hole.length < 3) continue;
+            ctx.strokeStyle = '#E53935';
+            ctx.fillStyle   = 'rgba(229,57,53,0.12)';
+            ctx.lineWidth   = 1.5;
+            ctx.setLineDash([5, 3]);
+            ctx.beginPath();
+            const p0 = toScreen(hole[0].x, hole[0].y);
+            ctx.moveTo(p0.x, p0.y);
+            for (let i = 1; i < hole.length; i++) {
+                const p = toScreen(hole[i].x, hole[i].y);
+                ctx.lineTo(p.x, p.y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        ctx.restore();
+    }
 
     function drawHolePreview() {
         if (!_holePreviewPts || _holePreviewPts.length < 2) return;
@@ -2346,6 +2414,7 @@ const FepsRenderer = (() => {
         init, resize, draw, setModel, setResults, setOpts,
         toModel, toScreen, nodePos, hitTestNode, hitTestElement,
         addPolygonPt, getPolygonPts, clearPolygon, setClosePolygon, setHolePreview,
+        setClosedPolygon, addClosedHole, clearClosedPolygon,
         setSelectedNode, getStressRange, fracToColor,
         computeStressRange,
         // Draw-mode API

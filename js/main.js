@@ -307,6 +307,7 @@
 
     function startDrawMode() {
         endSelMode(); closedPolygon = null; holePolygons = []; drawingHole = false;
+        FepsRenderer.clearClosedPolygon();
         $('btn-mesh-poly').disabled = true;
         $('btn-add-hole').disabled = true;
         FepsRenderer.setClosePolygon($('chk-close-path').checked);
@@ -398,12 +399,14 @@
                     setStatus('⚠ Polygon has zero area (collinear nodes). Cannot use.');
                 } else if (drawingHole) {
                     holePolygons.push(poly);
+                    FepsRenderer.addClosedHole([...poly]);       // ← 홀 렌더러에 등록
                     $('btn-mesh-poly').disabled = false;
                     $('btn-add-hole').disabled = false;
                     updateHoleStatus();
                     setStatus(`✓ Hole ${holePolygons.length} added (${polyNodes.length} vertices). Add more holes or click "Mesh Polygon".`);
                 } else {
                     closedPolygon = poly;
+                    FepsRenderer.setClosedPolygon([...poly]);    // ← 외곽 폴리곤 렌더러에 등록
                     $('btn-mesh-poly').disabled = false;
                     $('btn-add-hole').disabled = false;
                     updateHoleStatus();
@@ -412,6 +415,7 @@
             } else {
                 // ── Open polyline: no area check, no holes ──
                 closedPolygon = poly;
+                FepsRenderer.setClosedPolygon([...poly]);        // ← 오픈 경로도 렌더러에 등록
                 $('btn-mesh-poly').disabled = false;
                 $('btn-add-hole').disabled = true;
                 setStatus(`✓ Open path with ${polyNodes.length} nodes. Click "Mesh Polygon" to create elements.`);
@@ -508,9 +512,9 @@
             setStatus(`⚠ No ${isPathClosed ? 'closed polygon' : 'path'} to mesh. Use Start Draw → click nodes → End Draw → Mesh Polygon.`);
             return;
         }
-        const meshType = $('ele-type').value;     // from unified element type selector
-        const divX = Math.max(1, +$('mesh-div-x').value || 4);
-        const divY = Math.max(1, +$('mesh-div-y').value || 4);
+        const meshType   = $('ele-type').value;
+        const targetLen  = +$('mesh-edge-len').value || 0;   // 0 → auto
+        const smoothIter = Math.max(0, +$('mesh-smooth').value | 0);
         const mat = +$('ele-mat').value || 1;
         const pro = +$('ele-prop').value || 1;
         const is1D = ['BAR2', 'BEAM2D', 'BAR3D', 'BEAM3D'].includes(meshType);
@@ -547,7 +551,7 @@
         } else {
             // ── 2D solid type: generate filled mesh ──
             try {
-                const result = FepsMesher.generateMesh(closedPolygon, meshType, divX, divY, holePolygons);
+                const result = FepsMesher2.generateMesh(closedPolygon, meshType, targetLen, smoothIter, holePolygons);
 
                 // Track what this mesh operation creates for atomic undo
                 const createdNodeIds = [];
@@ -628,6 +632,7 @@
 
         closedPolygon = null;
         holePolygons = [];
+        FepsRenderer.clearClosedPolygon();   // 메시 생성 후 폴리곤/홀 오버레이 제거
         drawingHole = false;
         holeDrawType = 'polygon';
         holeDrawDragStart = null; holeDrawDragging = false; holePreviewPts = null;
@@ -783,7 +788,7 @@
         $('btn-add-mat').textContent = 'Add Material';
         $('btn-add-prop').textContent = 'Add Property';
         FepsRenderer.setModel(model); FepsRenderer.setResults(null);
-        FepsRenderer.clearSelection(); FepsRenderer.clearPolygon(); FepsRenderer.resetView();
+        FepsRenderer.clearSelection(); FepsRenderer.clearPolygon(); FepsRenderer.clearClosedPolygon(); FepsRenderer.resetView();
         updateOpts(); FepsRenderer.draw(); refreshLists(); updateModelInfo();
         $('btn-mesh-poly').disabled = true;
         $('btn-open-output').disabled = true;
@@ -800,7 +805,7 @@
                 model = FepsParser.parse(ev.target.result);
                 results = null; syncIdsFromModel();
                 FepsRenderer.setModel(model); FepsRenderer.setResults(null);
-                FepsRenderer.clearPolygon(); FepsRenderer.resetView();
+                FepsRenderer.clearPolygon(); FepsRenderer.clearClosedPolygon(); FepsRenderer.resetView();
                 updateOpts(); FepsRenderer.draw(); refreshLists(); updateModelInfo();
                 $('btn-open-output').disabled = true;
                 setStatus(`Loaded: ${file.name}`);
@@ -1724,6 +1729,7 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
                     setStatus('⚠ Hole has zero area. Drag further to define a shape.');
                 } else {
                     holePolygons.push([...holePreviewPts]);
+                    FepsRenderer.addClosedHole([...holePreviewPts]); // ← 홀 렌더러에 등록
                     updateHoleStatus();
                     $('btn-mesh-poly').disabled = false;
                     $('btn-add-hole').disabled = false;
@@ -2374,6 +2380,10 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
             // Restore the polygon so the user can re-mesh
             closedPolygon = action.polygon || null;
             holePolygons  = action.holes  || [];
+            // 렌더러 오버레이도 복원
+            FepsRenderer.clearClosedPolygon();
+            if (closedPolygon) FepsRenderer.setClosedPolygon([...closedPolygon]);
+            for (const h of holePolygons) FepsRenderer.addClosedHole([...h]);
             $('btn-mesh-poly').disabled = !closedPolygon;
             $('btn-add-hole').disabled  = !closedPolygon;
             updateHoleStatus();
