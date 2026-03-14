@@ -1,588 +1,588 @@
 # FEPS — Finite Element Program for General Structure
-## 사용자 설명서 (User Manual)
+## User Manual
 
-> **버전**: v0.1 (Web Edition)
-> **최종 수정**: 2026-03-14 (SRI 전단잠김 방지, QUAD4/TRIG3 기본 템플릿, TQMesh WASM 메시 엔진, 메시 품질 표시 업데이트)
-> **플랫폼**: 최신 웹 브라우저 (Chrome · Firefox · Safari · Edge)
-> **개발자**: 권민호 (경상국립대학교 토목공학과) — kwonm@gnu.ac.kr
-
----
-
-## 목차
-
-1. [프로그램 개요](#1-프로그램-개요)
-2. [주요 특징 및 지원 요소](#2-주요-특징-및-지원-요소)
-3. [화면 구성](#3-화면-구성)
-4. [입력 파일 형식 (.inp)](#4-입력-파일-형식-inp)
-5. [사전처리 (Pre-Process)](#5-사전처리-pre-process)
-6. [해석 실행](#6-해석-실행)
-7. [후처리 (Post-Process)](#7-후처리-post-process)
-8. [결과 출력 및 내보내기](#8-결과-출력-및-내보내기)
-9. [예제 모델](#9-예제-모델)
-10. [단위 및 주의사항](#10-단위-및-주의사항)
-11. [요소 코드 에디터 (학생 요소 개발)](#11-요소-코드-에디터-학생-요소-개발)
-12. [디버그 모드 — 행렬·단면력 뷰어](#12-디버그-모드--행렬단면력-뷰어)
-13. [FepsElementCore API 레퍼런스](#13-fepselementcore-api-레퍼런스)
+> **Version**: v0.1 (Web Edition)
+> **Last updated**: 2026-03-14 (SRI shear-locking cure, QUAD4/TRIG3 templates, TQMesh WASM mesh engine, mesh quality display)
+> **Platform**: Modern web browsers (Chrome · Firefox · Safari · Edge)
+> **Developer**: Minho Kwon, Dept. of Civil Engineering, Gyeongsang National University — kwonm@gnu.ac.kr
 
 ---
 
-## 1. 프로그램 개요
+## Table of Contents
 
-**FEPS**는 브라우저에서 완전히 동작하는 **2D 평면 유한요소해석(FEA) + 2D/3D 보/트러스 구조해석** 프로그램입니다. 별도 설치 없이 `index.html`을 브라우저에서 열거나 웹 서버에 배포하여 즉시 사용할 수 있습니다.
-
-### 기술 스택
-
-| 구성 요소 | 기술 |
-|-----------|------|
-| UI / 렌더링 | 순수 HTML5 + Canvas 2D API |
-| 해석 엔진 | JavaScript (동기 실행, 메인 스레드) |
-| 의존 라이브러리 | 없음 (Vanilla JS) |
-| 입출력 파일 | `.inp` 텍스트 파일 |
-
----
-
-## 2. 주요 특징 및 지원 요소
-
-### 2.1 지원 요소 유형
-
-#### 1D 요소 (트러스 / 보) — 기본 내장
-
-| 요소 이름 | 종류 | 차원 | 설명 |
-|-----------|------|------|------|
-| `BAR2` | 트러스 | 2D | 2절점 트러스, 축력만 전달 |
-| `BAR3D` | 트러스 | 3D | 2절점 3차원 트러스 |
-| `BEAM2D` | 보 (프레임) | 2D | 2절점 2D 보 요소 (축력 + 전단 + 휨모멘트), 분포하중 지원 |
-| `BEAM3D` | 보 (프레임) | 3D | 2절점 3D 보 요소 (6DOF/절점), 비틀림 포함 |
-
-#### 2D 고체 요소 (Solid) — 기본 내장
-
-| 요소 이름 | 절점 수 | 설명 |
-|-----------|---------|------|
-| `TRIG3` | 3 | 3절점 삼각형 (일차) |
-| `QUAD4` | 4 | 4절점 사각형 (일차) |
-
-#### 확장 요소 (학생 개발 / 플러그인 등록)
-
-프로그램 시작 시 자동 로드되는 샘플 학생 요소와, 직접 코드 에디터로 등록할 수 있는 커스텀 요소입니다.
-
-| 요소 이름 | 절점 수 | 종류 | 설명 |
-|-----------|---------|------|------|
-| `QUAD5` | 5 | 2D 고체 | 버블 함수 보강 5절점 사각형 (중심절점 포함) |
-| `QUAD8` | 8 | 2D 고체 | 8절점 세렌디피티 사각형 (이차) |
-| `QUAD9` | 8★ | 2D 고체 | 9절점 라그랑지 사각형 → **정적 축소로 8절점 동작** (중심절점 자동 제거) |
-| `TRIG6` | 6 | 2D 고체 | 6절점 라그랑지 삼각형 (이차) |
-| `BAR2_3N` | 3 | 1D 트러스 | 3절점 2D 봉 요소 (이차 축력) |
-| `TIMBEAM2D_2N` | 2 | 1D 보 | 2절점 티모셴코 보 (전단변형 포함) |
-| `TIMBEAM2D_3N` | 3 | 1D 보 | 3절점 티모셴코 보 (이차) |
-
-> ★ **정적 축소 (Static Condensation)**: QUAD9 요소는 내부적으로 9절점 완전 강성행렬을 계산한 뒤, 중심절점(내부 DOF)을 정적 축소하여 8절점 요소처럼 동작합니다. 사용자는 `.inp` 파일에서 8개 절점만 입력하면 되며, 응력 계산 시 내부 변위가 자동 복원됩니다. 이 기능은 `condense` 디스크립터 필드로 제어됩니다 (§11.7 참조).
-
-### 2.2 해석 기능
-
-- **선형 정적 해석** (Static Linear Analysis)
-- **LU 분해** 직접 해법 (Dense matrix)
-- **자중(중력) 하중** 자동 계산 (`ρ × A × g`)
-- **분포 하중** (등분포 및 사다리꼴 분포, `BEAM2D`/`BEAM3D`)
-- **온도 하중** (열팽창계수 `α × ΔT` 적용)
-- **절점 응력 평활화** (Node Averaging, 2D 고체 요소)
-
-### 2.3 사전처리 (Pre-Process)
-
-- 캔버스 직접 클릭으로 절점/요소 생성
-- 그리드 스냅 (간격·수 조정 가능)
-- 폴리곤 영역 자동 메시 생성 (**TQMesh** WASM 엔진 — advancing-front 기반 삼각형·사각형 혼합 메시)
-- 구멍(Hole) 포함 메시 생성 지원
-- 재료·단면 특성 정의 및 요소별 할당
-- 경계 조건(BC) 및 절점 하중 대화형 입력
-- `.inp` 파일 불러오기 / 저장
-
-### 2.4 후처리 (Post-Process)
-
-- **변형 형상** 표시 (스케일 슬라이더 0–1000 + 직접 입력 필드 0–9999)
-- **Ghost shape** (미변형 구조 점선 표시)
-- **2D 고체** 응력 등고선 컬러 맵 (σ_xx, σ_yy, τ_xy, σ_max, σ_min, von Mises)
-- **보/트러스** 단면력 다이어그램 (BMD, SFD, AFD, 비틀림)
-- **보/트러스 컬러 컨투어** — sxx = 축력, syy = 휨모멘트를 요소 위에 색상으로 표시
-- **반력 화살표** (Rx, Ry, Mz) 캔버스 오버레이
-- 색상 범례(Color Bar) 자동 표시
-- 절점 변위 결과표 (좌측 패널)
-- HTML 종합 리포트 출력
+1. [Program Overview](#1-program-overview)
+2. [Features and Supported Elements](#2-features-and-supported-elements)
+3. [Screen Layout](#3-screen-layout)
+4. [Input File Format (.inp)](#4-input-file-format-inp)
+5. [Pre-Processing](#5-pre-processing)
+6. [Running the Analysis](#6-running-the-analysis)
+7. [Post-Processing](#7-post-processing)
+8. [Output and Export](#8-output-and-export)
+9. [Example Models](#9-example-models)
+10. [Units and Notes](#10-units-and-notes)
+11. [Element Code Editor (Student Element Development)](#11-element-code-editor-student-element-development)
+12. [Debug Mode — Matrix and Force Viewer](#12-debug-mode--matrix-and-force-viewer)
+13. [FepsElementCore API Reference](#13-fepselementcore-api-reference)
 
 ---
 
-## 3. 화면 구성
+## 1. Program Overview
+
+**FEPS** is a fully browser-based program for **2D plane finite element analysis (FEA) and 2D/3D beam/truss structural analysis**. No installation is required — simply open `index.html` in a browser or deploy to any web server.
+
+### Technology Stack
+
+| Component | Technology |
+|-----------|-----------|
+| UI / Rendering | Pure HTML5 + Canvas 2D API |
+| Analysis engine | JavaScript (synchronous, main thread) |
+| Dependencies | None (Vanilla JS) |
+| I/O format | `.inp` plain-text file |
+
+---
+
+## 2. Features and Supported Elements
+
+### 2.1 Supported Element Types
+
+#### 1D Elements (Truss / Beam) — Built-in
+
+| Element | Type | Dim | Description |
+|---------|------|-----|-------------|
+| `BAR2` | Truss | 2D | 2-node truss, axial force only |
+| `BAR3D` | Truss | 3D | 2-node 3D truss |
+| `BEAM2D` | Beam (Frame) | 2D | 2-node 2D beam (axial + shear + bending), distributed load supported |
+| `BEAM3D` | Beam (Frame) | 3D | 2-node 3D beam (6 DOF/node), torsion included |
+
+#### 2D Solid Elements — Built-in
+
+| Element | Nodes | Description |
+|---------|-------|-------------|
+| `TRIG3` | 3 | 3-node linear triangle (CST) |
+| `QUAD4` | 4 | 4-node bilinear quadrilateral |
+
+#### Extended Elements (Student-developed / Plug-in)
+
+These sample elements are auto-loaded at startup and can also be registered via the code editor.
+
+| Element | Nodes | Type | Description |
+|---------|-------|------|-------------|
+| `QUAD5` | 5 | 2D solid | 5-node bubble-function-enhanced quadrilateral (with center node) |
+| `QUAD8` | 8 | 2D solid | 8-node serendipity quadrilateral (quadratic) |
+| `QUAD9` | 8★ | 2D solid | 9-node Lagrange quad → **operates as 8-node via static condensation** (center node auto-removed) |
+| `TRIG6` | 6 | 2D solid | 6-node Lagrange triangle (quadratic) |
+| `BAR2_3N` | 3 | 1D truss | 3-node 2D bar element (quadratic axial) |
+| `TIMBEAM2D_2N` | 2 | 1D beam | 2-node Timoshenko beam (shear deformation included) |
+| `TIMBEAM2D_3N` | 3 | 1D beam | 3-node Timoshenko beam (quadratic) |
+
+> ★ **Static Condensation**: QUAD9 internally computes the full 9-node stiffness matrix, then condenses the center node (internal DOF) to behave as an 8-node element. The user only inputs 8 nodes in the `.inp` file; internal displacements are automatically recovered for stress computation. Controlled by the `condense` descriptor field (see §11.7).
+
+### 2.2 Analysis Capabilities
+
+- **Linear static analysis**
+- **LU decomposition** direct solver (dense matrix)
+- **Self-weight** auto-computation (`ρ × A × g`)
+- **Distributed loads** (uniform and trapezoidal, `BEAM2D`/`BEAM3D`)
+- **Thermal loads** (thermal expansion coefficient `α × ΔT`)
+- **Nodal stress smoothing** (node averaging, 2D solid elements)
+
+### 2.3 Pre-Processing
+
+- Interactive canvas: click to create nodes and elements
+- Grid snap (adjustable spacing and count)
+- Automatic 2D mesh generation (**TQMesh** WASM engine — advancing-front tri/quad mixed mesh)
+- Hole support in mesh generation
+- Material and section property definition and per-element assignment
+- Interactive boundary condition and nodal load input
+- `.inp` file open / save
+
+### 2.4 Post-Processing
+
+- **Deformed shape** display (scale slider 0–1000 + direct input field 0–9999)
+- **Ghost shape** (undeformed structure shown as dashed outline)
+- **2D solid** stress contour color map (σ_xx, σ_yy, τ_xy, σ_max, σ_min, von Mises)
+- **Beam/truss** section force diagrams (BMD, SFD, AFD, torsion)
+- **Beam/truss color contour** — sxx = axial force, syy = bending moment displayed as gradient color on elements
+- **Reaction force arrows** (Rx, Ry, Mz) canvas overlay
+- Auto-displayed color legend (Color Bar)
+- Nodal displacement result table (left panel)
+- HTML comprehensive report output
+
+---
+
+## 3. Screen Layout
 
 ```
-┌────────────────────────────── 툴바 (Toolbar) ──────────────────────────────┐
+┌──────────────────────────── Toolbar ───────────────────────────────────────┐
 │  FEPS  [New] [Open] [Save As] [Export] | [▶ Run Analysis] [Output] [Report]│
 │        [↩ Undo] | [Zoom Win] [Zoom All] | [🗑 Delete]                       │
 └─────────────────────────────────────────────────────────────────────────────┘
-┌─── 탭 ────────┐
+┌─── Tabs ──────┐
 │ Pre-Process │ Post-Process │
 ├─────────────┴──────────────────────────────────────────────────────────────┐
-│  좌측 패널                │          캔버스 (Canvas)                        │
-│  (Pre / Post 패널)        │  (절점·요소·BC·하중·변형·다이어그램 렌더링)    │
-│  ─ 재료 정의              │                                                 │
-│  ─ 단면 특성 정의         │                                [색상 범례]      │
-│  ─ 중력 설정              │                                                 │
-│  ─ 요소 생성              │                                                 │
-│  ─ 선택 및 할당            │                                                 │
-│  ─ 경계 조건              │                                                 │
-│  ─ 절점 하중              │                                                 │
-│  ─ 표시 옵션              │                                                 │
+│  Left Panel               │          Canvas                                 │
+│  (Pre / Post panels)      │  (nodes · elements · BC · loads · deform ·     │
+│  ─ Material definition    │   diagrams rendered here)                       │
+│  ─ Section properties     │                               [Color Legend]    │
+│  ─ Gravity setting        │                                                 │
+│  ─ Element creation       │                                                 │
+│  ─ Selection & assignment │                                                 │
+│  ─ Boundary conditions    │                                                 │
+│  ─ Nodal loads            │                                                 │
+│  ─ Display options        │                                                 │
 └───────────────────────────┴─────────────────────────────────────────────────┘
 ```
 
-### 3.1 툴바 버튼
+### 3.1 Toolbar Buttons
 
-| 버튼 | 기능 |
-|------|------|
-| **New** | 모델 초기화 |
-| **Open** | `.inp` 파일 불러오기 |
-| **Save As** | 현재 모델을 `.inp` 파일로 저장 |
-| **Export** | VTK 등 외부 형식으로 내보내기 |
-| **▶ Run Analysis** | FE 해석 실행 |
-| **Output** | 해석 결과 텍스트 출력 창 열기 |
-| **Report** | HTML 종합 리포트 생성 |
-| **↩ Undo** | 마지막 절점/요소 작업 취소 |
-| **Zoom Win** | 드래그 영역 줌 |
-| **Zoom All** | 전체 모델 맞춤 보기 |
-| **🗑 Delete** | 선택된 절점/요소/선 삭제 |
-| **요소 편집기** | 브라우저 내장 코드 에디터 열기 (커스텀 요소 작성·등록·관리) |
-| **디버그** | 디버그 모드 ON/OFF 토글 — 해석 후 강성행렬·절점력 뷰어 자동 오픈 |
-| **행렬 보기** | 디버그 뷰어 수동 열기 (해석 완료 후 언제든지) |
+| Button | Function |
+|--------|----------|
+| **New** | Reset model |
+| **Open** | Load a `.inp` file |
+| **Save As** | Save current model as a `.inp` file |
+| **Export** | Export to external format (VTK, etc.) |
+| **▶ Run Analysis** | Execute FE analysis |
+| **Output** | Open text result window |
+| **Report** | Generate HTML comprehensive report |
+| **↩ Undo** | Undo last node/element operation |
+| **Zoom Win** | Drag-to-zoom a region |
+| **Zoom All** | Fit entire model to view |
+| **🗑 Delete** | Delete selected nodes/elements/lines |
+| **Element Editor** | Open built-in code editor (write, register, manage custom elements) |
+| **Debug** | Toggle debug mode ON/OFF — auto-opens matrix/force viewer after analysis |
+| **View Matrix** | Manually open the debug viewer (available after any analysis) |
 
-### 3.2 캔버스 마우스 조작
+### 3.2 Canvas Mouse Controls
 
-| 조작 | 동작 |
-|------|------|
-| 스크롤 | 확대/축소 |
-| 우클릭 드래그 | 화면 이동 (Pan) |
-| 좌클릭 (Draw 모드) | 절점 배치 또는 요소 끝점 지정 |
-| 좌클릭 드래그 (Select 모드) | 다중 선택 |
+| Action | Result |
+|--------|--------|
+| Scroll wheel | Zoom in/out |
+| Right-click drag | Pan |
+| Left-click (Draw mode) | Place node or specify element endpoint |
+| Left-click drag (Select mode) | Multi-select |
 
 ---
 
-## 4. 입력 파일 형식 (.inp)
+## 4. Input File Format (.inp)
 
-FEPS의 표준 입력 파일 형식입니다. 텍스트 편집기로 작성하거나 **Save As**로 저장합니다.
+FEPS uses a plain-text input file format. Files can be written in any text editor or saved from the program using **Save As**.
 
-> **주석 지원**: `#`으로 시작하는 줄은 주석으로 처리되어 무시됩니다. 빈 줄도 자동으로 건너뜁니다.
+> **Comment support**: Lines starting with `#` are treated as comments and ignored. Blank lines are also skipped automatically.
 > ```
-> # 이것은 주석입니다
-> 10 2 2      ← 이 줄부터 실제 데이터
+> # This is a comment
+> 10 2 2      ← actual data starts here
 > ```
 
-### 4.1 전체 구조
+### 4.1 Overall Structure
 
 ```
-<헤더 라인>
-<절점 정의>
-<재료 정의>
-<단면 특성 정의>
-<요소 정의>
-<경계조건 및 하중>
-[<분포하중(ESURF)>]
+<header line>
+<node definitions>
+<material definitions>
+<section property definitions>
+<element definitions>
+<boundary conditions and loads>
+[<distributed loads (ESURF)>]
 ```
 
-### 4.2 헤더 라인
+### 4.2 Header Line
 
 ```
 numNod  dofNod  dim  [gx  gy  gz]
 ```
 
-| 필드 | 설명 |
-|------|------|
-| `numNod` | 전체 절점 수 |
-| `dofNod` | 절점당 자유도 수 (2D 트러스=2, 2D 보=3, 3D=6) |
-| `dim` | 공간 차원 (2 또는 3) |
-| `gx gy gz` | (선택) 중력 가속도 벡터 (예: `0 -9.81 0`) |
+| Field | Description |
+|-------|-------------|
+| `numNod` | Total number of nodes |
+| `dofNod` | DOFs per node (2D truss=2, 2D beam=3, 3D=6) |
+| `dim` | Spatial dimension (2 or 3) |
+| `gx gy gz` | (Optional) gravity acceleration vector (e.g. `0 -9.81 0`) |
 
-**예시:**
+**Example:**
 ```
-5  3  2          ← 절점 5개, 자유도 3(2D 보), 2차원
-5  3  2  0  -9.81  0    ← 중력 포함
+5  3  2          ← 5 nodes, 3 DOF (2D beam), 2D
+5  3  2  0  -9.81  0    ← with gravity
 ```
 
-### 4.3 절점 정의
+### 4.3 Node Definitions
 
 ```
 id  x  y  [z]
 ```
 
-**예시:**
+**Example:**
 ```
 1   0.0   0.0
 2   3.0   0.0
 3   3.0   4.0
 ```
 
-### 4.4 재료 정의
+### 4.4 Material Definitions
 
 ```
 numMat
 id  E  nu  [rho]
 ```
 
-| 필드 | 설명 |
-|------|------|
-| `E` | 탄성계수 (Young's Modulus) |
-| `nu` | 포아송 비 (Poisson's ratio) |
-| `rho` | (선택) 질량 밀도 |
+| Field | Description |
+|-------|-------------|
+| `E` | Young's modulus |
+| `nu` | Poisson's ratio |
+| `rho` | (Optional) mass density |
 
-**예시:**
+**Example:**
 ```
 1
 1  200e9  0.3  7850
 ```
 
-### 4.5 단면 특성 정의
+### 4.5 Section Property Definitions
 
 ```
 numProp
 id  A  t  [Iz  Iy  J  alpha]
 ```
 
-| 필드 | 설명 |
-|------|------|
-| `A` | 단면적 |
-| `t` | 두께 (2D 고체 요소) |
-| `Iz` | z축 휨 단면2차모멘트 |
-| `Iy` | y축 휨 단면2차모멘트 (3D 보) |
-| `J` | 비틀림 상수 (3D 보) |
-| `alpha` | 열팽창계수 |
+| Field | Description |
+|-------|-------------|
+| `A` | Cross-sectional area |
+| `t` | Thickness (2D solid elements) |
+| `Iz` | Second moment of area about z-axis |
+| `Iy` | Second moment of area about y-axis (3D beam) |
+| `J` | Torsional constant (3D beam) |
+| `alpha` | Thermal expansion coefficient |
 
-**예시:**
+**Example:**
 ```
 1
 1  4740e-6  1.0  22e-6  0.0  0.0  0.0
 ```
 
-### 4.6 요소 정의
+### 4.6 Element Definitions
 
 ```
 numElem
 TYPE  id  matId  propId  n1  n2  [n3 ...]  [ΔT  wy1  wy2]
 ```
 
-#### BAR2 / BAR3D (트러스)
+#### BAR2 / BAR3D (Truss)
 
 ```
 BAR2   1  1  1  1  3   0  0
 ```
-`n1 n2 ΔT axialLoad` (axialLoad는 현재 미사용)
+`n1 n2 ΔT axialLoad` (axialLoad currently unused)
 
-#### BEAM2D (2D 보)
+#### BEAM2D (2D Beam)
 
 ```
 BEAM2D  2  1  1  3  2   0  25  0
 ```
 `n1 n2 ΔT wy1 wy2`
-- `wy1`, `wy2`: 요소 시작/끝의 분포 하중 (kN/m, y방향, + = 위)
+- `wy1`, `wy2`: distributed load at element start/end (force/length, y-direction, + = upward)
 
-#### BEAM3D (3D 보)
+#### BEAM3D (3D Beam)
 
 ```
 BEAM3D  1  1  1  1  2   0  0  0  0  0
 ```
 `n1 n2 ΔT wy1 wy2 wz1 wz2`
 
-#### TRIG3 / QUAD4 (2D 고체)
+#### TRIG3 / QUAD4 (2D Solid)
 
 ```
 QUAD4  1  1  1  1  2  3  4
 TRIG3  1  1  1  1  2  3
 ```
 
-#### 확장 요소 (QUAD5, QUAD8, QUAD9, TRIG6)
+#### Extended Elements (QUAD5, QUAD8, QUAD9, TRIG6)
 
-확장 요소도 동일한 형식으로 정의합니다. 절점 수는 요소 유형에 따라 결정됩니다.
+Extended elements use the same format; the number of nodes is determined by element type.
 
 ```
 QUAD5  1  1  1  1  3  4  2  11      0  0  0
 ```
-`n1 n2 n3 n4 n5` — 5절점 (코너 4개 + 중심 1개)
+`n1 n2 n3 n4 n5` — 5 nodes (4 corners + 1 center)
 
 ```
 QUAD8  1  1  1  1  3  4  2  5  6  7  8      0  0  0
 ```
-`n1~n8` — 8절점 (코너 4개 + 중간변 4개)
+`n1~n8` — 8 nodes (4 corners + 4 mid-side)
 
 ```
 QUAD9  1  1  1  1  3  4  2  11 12 13 14    0  0  0
 ```
-`n1~n8` — 8절점 (코너 4개 + 중간변 4개). **QUAD9는 정적 축소로 8절점으로 동작**하므로, 중심절점은 입력하지 않습니다.
+`n1~n8` — 8 nodes (4 corners + 4 mid-side). **QUAD9 operates as 8-node via static condensation**; the center node is not specified.
 
 ```
 TRIG6  1  1  1  1  2  3  4  5  6     0  0  0
 ```
-`n1~n6` — 6절점 (꼭짓점 3개 + 중간변 3개)
+`n1~n6` — 6 nodes (3 corner + 3 mid-side)
 
-> **참고**: 절점 순서는 반시계 방향(CCW)입니다. 사각형 요소의 코너 순서는 로컬 좌표계 (−1,−1)→(+1,−1)→(+1,+1)→(−1,+1) 에 대응합니다.
+> **Note**: Node ordering is counter-clockwise (CCW). Quadrilateral corner ordering corresponds to local coordinates (−1,−1)→(+1,−1)→(+1,+1)→(−1,+1).
 
-### 4.7 경계조건 및 하중
+### 4.7 Boundary Conditions and Loads
 
 ```
 numBC
-nid  [구속 플래그...]  [하중값...]
+nid  [constraint flags...]  [load values...]
 ```
 
-**2D 보 (dofNod=3): Dx Dy Rz | Fx Fy Mz**
+**2D beam (dofNod=3): Dx Dy Rz | Fx Fy Mz**
 ```
-1   1  1  1   0.0   0.0   0.0      ← 절점1: 고정지점 (Dx=Dy=Rz 구속)
-3   0  0  0  40.0 -80.0   0.0      ← 절점3: Fx=40, Fy=-80 적용
+1   1  1  1   0.0   0.0   0.0      ← Node 1: fixed support (Dx=Dy=Rz constrained)
+3   0  0  0  40.0 -80.0   0.0      ← Node 3: Fx=40, Fy=-80 applied
 ```
 
-**3D 보 (dofNod=6): Dx Dy Dz Rx Ry Rz | Fx Fy Fz Mx My Mz**
+**3D beam (dofNod=6): Dx Dy Dz Rx Ry Rz | Fx Fy Fz Mx My Mz**
 ```
 1   1 1 1 0 0 0   0. 0. 0. 0. 0. 0.
 ```
 
-> **구속 플래그**: `1` = 변위 구속, `0` = 자유
+> **Constraint flag**: `1` = displacement constrained, `0` = free
 
-### 4.8 분포하중 (ESURF 섹션, 선택)
+### 4.8 Distributed Loads (ESURF Section, Optional)
 
-경계조건 블록 아래에 추가합니다.
+Appended after the boundary condition block.
 
 ```
 numESURF
-eid  wy1  wy2          ← BEAM2D/BAR2
-eid  wy1  wy2  wz1  wz2   ← BEAM3D
-eid  side  qx1  qy1  qx2  qy2   ← 2D 고체 (면하중)
+eid  wy1  wy2              ← BEAM2D/BAR2
+eid  wy1  wy2  wz1  wz2    ← BEAM3D
+eid  side  qx1  qy1  qx2  qy2   ← 2D solid (surface traction)
 ```
 
 ---
 
-## 5. 사전처리 (Pre-Process)
+## 5. Pre-Processing
 
-### 5.1 재료 정의
+### 5.1 Material Definition
 
-1. 좌측 패널 **Materials** 섹션에서 `E`, `ν`, `ρ` 입력
-2. **Add Material** 클릭 → 재료 목록에 추가
-3. 여러 재료를 순차적으로 추가 가능
+1. In the **Materials** section of the left panel, enter `E`, `ν`, `ρ`
+2. Click **Add Material** → material added to the list
+3. Multiple materials can be added sequentially
 
-#### 재료 값 수정 (Edit-in-Place)
+#### Editing Materials (Edit-in-Place)
 
-이미 추가된 재료를 수정하려면:
+To modify a material already in the list:
 
-1. 재료 목록 항목 오른쪽의 **✎ (연필)** 버튼 클릭
-   - 해당 항목이 **파란색 배경**으로 강조되고, 버튼 텍스트가 **`Update M1`** 으로 변경됨
-   - 현재 재료값(E, ν, ρ)이 입력 필드에 자동으로 불러와짐
-2. 입력 필드에서 값을 수정한 후 **Update M1** 클릭 → 기존 재료 in-place 업데이트
-3. ✎ 버튼을 다시 클릭하면 **편집 취소** (Add Material 모드로 복귀)
+1. Click the **✎ (pencil)** button to the right of the entry
+   - The entry is highlighted in **blue**, and the button text changes to **`Update M1`**
+   - Current values (E, ν, ρ) are automatically loaded into the input fields
+2. Edit the values, then click **Update M1** → material updated in-place
+3. Clicking ✎ again **cancels editing** (returns to Add Material mode)
 
-> **중요**: 재료를 수정한 후에는 반드시 **▶ Run Analysis** 를 다시 실행해야 새 E·ν 값이 해석 결과에 반영됩니다.
+> **Important**: After editing a material, **▶ Run Analysis** must be re-run for the new E/ν values to take effect in the results.
 
-### 5.2 단면 특성 정의
+### 5.2 Section Property Definition
 
-1. **Section Properties** 섹션에서 `A`, `t`, `Iz`, `Iy`, `J`, `α` 입력
-2. **Add Property** 클릭 → 단면 목록에 추가
+1. In the **Section Properties** section, enter `A`, `t`, `Iz`, `Iy`, `J`, `α`
+2. Click **Add Property** → section added to the list
 
-#### 단면 특성 수정 (Edit-in-Place)
+#### Editing Sections (Edit-in-Place)
 
-재료 수정과 동일한 방법으로 **✎ 버튼** → 값 수정 → **Update P{id}** 클릭.
+Same as material editing: **✎ button** → edit values → click **Update P{id}**.
 
-> **2D 고체 요소(QUAD4, TRIG3) 주의**: 이 요소들은 단면적 `A`를 사용하지 않으며 두께 `t`만 적용됩니다. `A` 필드의 툴팁에서도 이 내용을 확인할 수 있습니다.
+> **Note for 2D solid elements (QUAD4, TRIG3)**: These elements do not use cross-sectional area `A`; only thickness `t` applies. A tooltip on the `A` field also confirms this.
 
-> **팁**: 2D 고체 요소는 `t` (두께)만 필요. 보/트러스는 `A`, `Iz` 필수.
+> **Tip**: 2D solid elements only need `t` (thickness). Beams/trusses require `A` and `Iz`.
 
-### 5.3 중력 설정
+### 5.3 Gravity Setting
 
-- **Gravity** 섹션에서 `gx`, `gy`, `gz` 입력
-- 중력 방향은 모델 좌표계 기준: 아래 방향이 `-y`인 경우 `gy = -9.81`
-- 자중 계산에는 재료의 `ρ`(밀도)가 필요
+- Enter `gx`, `gy`, `gz` in the **Gravity** section
+- Gravity direction is in model coordinates: if downward is `-y`, set `gy = -9.81`
+- Self-weight computation requires material density `ρ`
 
-### 5.4 요소 생성
+### 5.4 Element Creation
 
-#### 1D 요소 (보/트러스) — 직접 그리기
+#### 1D Elements (Beam/Truss) — Interactive Drawing
 
-1. **Type** 드롭다운에서 `BAR2` / `BEAM2D` / `BAR3D` / `BEAM3D` 선택
-2. **Mat**, **Prop** 선택
-3. **Close Path 체크 해제** (연속 폴리라인 모드)
-4. **▶ Start Draw** 클릭
-5. 캔버스에서 절점 위치 순서대로 클릭 (자동 절점 생성 + 요소 생성)
-6. **■ End Draw** 클릭으로 종료
+1. Select `BAR2` / `BEAM2D` / `BAR3D` / `BEAM3D` from the **Type** dropdown
+2. Select **Mat** and **Prop**
+3. **Uncheck Close Path** (polyline mode)
+4. Click **▶ Start Draw**
+5. Click node positions on the canvas in order (nodes and elements created automatically)
+6. Click **■ End Draw** to finish
 
-> **Snap to Grid**: 그리드 스냅을 켜면 입력 정밀도 향상. Spacing(간격), Count(격자 수) 조정 가능.
+> **Snap to Grid**: Enables snap for improved input precision. Spacing and Count are adjustable.
 
-#### 2D 고체 요소 — 폴리곤 메시 생성
+#### 2D Solid Elements — Polygon Mesh Generation
 
-FEPS의 2D 고체 메시 생성은 **TQMesh** (Florian Sewn, MIT License) 라이브러리를 WebAssembly(WASM)로 컴파일한 엔진을 사용합니다. TQMesh는 advancing-front 알고리즘 기반으로 삼각형·사각형 혼합 메시를 생성하며, 구멍(hole)을 포함한 복잡한 2D 영역도 지원합니다.
+FEPS uses the **TQMesh** library (Florian Sewn, MIT License), compiled to WebAssembly (WASM), as its 2D mesh generation engine. TQMesh is based on an advancing-front algorithm and generates mixed triangular/quadrilateral meshes, supporting complex 2D domains including holes.
 
 > **TQMesh**: <https://github.com/FloSewn/TQMesh>
 
-1. **Type** 드롭다운에서 `TRIG3` / `TRIG6` / `QUAD4` / `QUAD8` 선택
-2. **Close Path 체크** (폐합 폴리곤 모드)
-3. **▶ Start Draw** 클릭 → 폴리곤 꼭짓점 순서대로 클릭
-4. **■ End Draw** 클릭으로 폴리곤 완성
-5. **Edge Length** (목표 요소 크기) 및 **Smooth** (라플라시안 스무딩 반복 횟수) 설정
-6. **Mesh Polygon** 클릭 → TQMesh WASM 엔진이 메시 자동 생성
-7. (선택) **+ Add Hole** 로 내부 구멍 추가 후 **Mesh Polygon** 재실행
+1. Select `TRIG3` / `TRIG6` / `QUAD4` / `QUAD8` from the **Type** dropdown
+2. **Check Close Path** (closed polygon mode)
+3. Click **▶ Start Draw** → click polygon vertices in order
+4. Click **■ End Draw** to close the polygon
+5. Set **Edge Length** (target element size) and **Smooth** (Laplacian smoothing iterations)
+6. Click **Mesh Polygon** → TQMesh WASM engine generates the mesh automatically
+7. (Optional) Click **+ Add Hole** to define an interior hole, then re-run **Mesh Polygon**
 
-> **메시 품질 표시**: 생성된 메시에서 삼각형 잔여 요소는 **주황색**, 내각 ≥ 150°인 불량 사각형은 **빨간색**으로 강조 표시됩니다.
+> **Mesh quality display**: Triangular leftover elements are highlighted in **orange**; quads with an interior angle ≥ 150° are highlighted in **red**.
 
-#### 절점만 생성
+#### Node-Only Creation
 
-- **✚ Create Node** 버튼 클릭 후 캔버스 클릭
+- Click **✚ Create Node**, then click on the canvas
 
 #### Undo
 
-- 툴바의 **↩ Undo** 로 마지막 절점/요소 삭제
+- Use **↩ Undo** in the toolbar to delete the last node/element
 
-### 5.5 선택 및 할당
+### 5.5 Selection and Assignment
 
-1. **🔲 Select Elem** 또는 **⊙ Select Nodes** 클릭
-2. 캔버스에서 객체 클릭 또는 드래그로 다중 선택
-3. **Assign Mat/Prop** — 선택 요소에 재료/단면 재할당
-4. **Assign BC/Load** — 선택 절점에 경계조건/하중 할당
+1. Click **🔲 Select Elem** or **⊙ Select Nodes**
+2. Click or drag on the canvas to select objects
+3. **Assign Mat/Prop** — reassign material/section to selected elements
+4. **Assign BC/Load** — assign boundary conditions/loads to selected nodes
 
-### 5.6 경계조건 및 절점 하중
+### 5.6 Boundary Conditions and Nodal Loads
 
-절점을 선택한 후 **Assign BC/Load** 를 클릭하면 대화창이 열립니다.
+Select nodes, then click **Assign BC/Load** to open the dialog.
 
-- **구속 (BC)**: 각 자유도별 구속 체크박스 선택
-- **하중 (Load)**: 각 자유도별 하중값 입력
-- 설정 완료 시 **BC Icons** 및 **Load Arrows** 가 캔버스에 표시됨
+- **Constraints (BC)**: check constraint checkboxes for each DOF
+- **Loads**: enter load values for each DOF
+- After setting, **BC icons** and **load arrows** are displayed on the canvas
 
-#### BC 심볼 표기
+#### BC Symbol Legend
 
-| 심볼 | 의미 |
-|------|------|
-| 녹색 삼각형 | 핀 지점 (Dx·Dy 구속) |
-| 파란 원 + 선 | 롤러 지점 (Dx 또는 Dy 구속) |
-| 빨간 해칭 사각형 | 완전 고정 (모든 DOF 구속) |
+| Symbol | Meaning |
+|--------|---------|
+| Green triangle | Pin support (Dx·Dy constrained) |
+| Blue circle + line | Roller support (Dx or Dy constrained) |
+| Red hatched rectangle | Fixed support (all DOFs constrained) |
 
-> 심볼 크기는 구조물 전체 크기에 자동 비례 조정됩니다.
+> Symbol size scales automatically with the overall model size.
 
-### 5.7 표시 옵션
+### 5.7 Display Options
 
-| 옵션 | 기능 |
-|------|------|
-| Node IDs | 절점 번호 표시 |
-| Element IDs | 요소 번호 표시 |
-| BC Icons | 지점 조건 심볼 표시 |
-| Load Arrows | 절점 하중 화살표 표시 |
-| Color by Material | 재료별 색상 구분 |
-
----
-
-## 6. 해석 실행
-
-### 6.1 실행 방법
-
-툴바의 **▶ Run Analysis** 버튼 클릭
-
-- 해석 완료 시 상태 표시줄에 소요 시간 및 자유도 수 표시
-- 자동으로 **Post-Process** 탭으로 전환
-
-### 6.2 해석 알고리즘
-
-| 단계 | 내용 |
-|------|------|
-| 강성 행렬 조립 | 요소별 국소 강성 → 전체 강성 행렬 조립 |
-| 등가 절점 하중 | 분포하중·자중 → 절점 등가 하중 변환 |
-| 경계조건 적용 | 구속 DOF 제거 (Penalty 또는 Elimination) |
-| 연립방정식 풀이 | LU 분해 (Partial Pivoting) |
-| 후처리 계산 | 반력, 요소 단면력, 절점 응력 계산 |
-
-### 6.3 결과 저장
-
-- 해석 결과는 메모리에 유지되며, **Output** 버튼으로 텍스트 형태 조회 가능
+| Option | Function |
+|--------|----------|
+| Node IDs | Show node numbers |
+| Element IDs | Show element numbers |
+| BC Icons | Show support condition symbols |
+| Load Arrows | Show nodal load arrows |
+| Color by Material | Color elements by material |
 
 ---
 
-## 7. 후처리 (Post-Process)
+## 6. Running the Analysis
 
-### 7.1 변형 형상
+### 6.1 How to Run
 
-| 설정 | 설명 |
-|------|------|
-| **Show Deformed** | 변형 형상 표시 ON/OFF |
-| **Ghost Shape** | 미변형 구조를 점선으로 표시 |
-| **Scale** (슬라이더 + 입력 필드) | 변형 배율 조정. 슬라이더 범위 0–1000, 숫자 입력 필드로 0–9999 이상의 값도 직접 입력 가능. |
+Click **▶ Run Analysis** in the toolbar.
 
-#### 자동 스케일(Auto-Scale) 동작 방식
+- When complete, the status bar shows elapsed time and total DOF count
+- The view automatically switches to the **Post-Process** tab
 
-- **첫 번째 해석 시**: 최대 변위가 모델 특성 길이의 약 25%가 되도록 자동 스케일을 계산합니다.
-  - 1D 모델(보/트러스): 평균 요소 길이를 특성 길이로 사용
-  - 2D 고체 모델: 전체 절점의 바운딩 박스 대각선 길이를 특성 길이로 사용
-- **재해석 시 (재료·하중 변경 후)**: 스케일이 첫 번째 해석 기준으로 **고정(잠금)** 됩니다. 따라서 E를 2배로 높이면 변형 화면도 실제와 동일하게 약 절반으로 줄어드는 것이 정확하게 시각화됩니다.
-- **모델 변경 (New/Open/Undo 후)**: 자동 스케일 잠금이 해제되어 다음 해석 시 다시 자동 계산합니다.
+### 6.2 Analysis Algorithm
 
-> **스케일 수동 설정**: 슬라이더 옆 숫자 입력 필드에 직접 값을 입력하면 슬라이더 최댓값(1000)을 초과하는 배율도 즉시 적용됩니다. 두 컨트롤은 양방향으로 동기화됩니다.
+| Step | Description |
+|------|-------------|
+| Stiffness assembly | Local element stiffness → global stiffness matrix assembly |
+| Equivalent nodal loads | Distributed loads and self-weight → equivalent nodal loads |
+| Apply boundary conditions | Remove constrained DOFs (Penalty or Elimination) |
+| Solve system of equations | LU decomposition (partial pivoting) |
+| Post-processing | Reactions, element section forces, nodal stress computation |
 
-### 7.2 단면력 다이어그램 (1D 보/트러스)
+### 6.3 Result Storage
 
-**Result Component** 드롭다운에서 선택:
+- Results are kept in memory; click **Output** to view as text
 
-| 항목 | 설명 |
-|------|------|
-| **Axial Force (N)** | 축력 (AFD) |
-| **Shear Force Vy** | y방향 전단력 (SFD) |
-| **Bending Moment Mz** | z축 휨모멘트 (BMD) |
-| **Shear Force Vz (3D)** | 3D z방향 전단력 |
-| **Bending Moment My (3D)** | 3D y축 휨모멘트 |
-| **Torsion T (3D)** | 3D 비틀림 모멘트 |
+---
 
-- 다이어그램 높이는 **Diagram Scale** 슬라이더(1–500) 또는 옆의 숫자 입력 필드(1–9999)로 조정
-- 슬라이더와 입력 필드는 양방향 동기화 — 입력 필드에서 500 초과 값도 직접 입력 가능
-- 끝점에 수치 자동 표시
-- BMD는 분포하중에 의한 포물선 형상까지 정확히 표현
+## 7. Post-Processing
 
-#### 부호 규약
+### 7.1 Deformed Shape
+
+| Setting | Description |
+|---------|-------------|
+| **Show Deformed** | Toggle deformed shape display ON/OFF |
+| **Ghost Shape** | Show undeformed structure as dashed lines |
+| **Scale** (slider + input field) | Adjust deformation magnification factor. Slider range 0–1000; direct numeric input supports values above 9999. |
+
+#### Auto-Scale Behavior
+
+- **First analysis**: auto-scale is computed so that the maximum displacement is approximately 25% of the model's characteristic length.
+  - 1D model (beam/truss): average element length used as characteristic length
+  - 2D solid model: bounding-box diagonal of all nodes used as characteristic length
+- **Re-analysis (after material/load change)**: scale is **locked** to the first-analysis value. Thus doubling E will correctly halve the displayed deformation.
+- **Model change (after New/Open/Undo)**: auto-scale lock is released; auto-computed again on next analysis.
+
+> **Manual scale**: Type a value directly in the numeric input field beside the slider to apply a factor beyond the slider maximum (1000). Both controls are bidirectionally synchronized.
+
+### 7.2 Section Force Diagrams (1D Beam/Truss)
+
+Select from the **Result Component** dropdown:
+
+| Item | Description |
+|------|-------------|
+| **Axial Force (N)** | Axial force diagram (AFD) |
+| **Shear Force Vy** | Shear force in y-direction (SFD) |
+| **Bending Moment Mz** | Bending moment about z-axis (BMD) |
+| **Shear Force Vz (3D)** | 3D shear force in z-direction |
+| **Bending Moment My (3D)** | 3D bending moment about y-axis |
+| **Torsion T (3D)** | 3D torsion moment |
+
+- Diagram height adjusted by **Diagram Scale** slider (1–500) or the adjacent numeric input field (1–9999)
+- Slider and input field are bidirectionally synchronized
+- Numerical values auto-displayed at element ends
+- BMD correctly represents parabolic shape under distributed loads
+
+#### Sign Convention
 
 - SFD: `V(x) = −V₁ − wy₁·x − (wy₂−wy₁)·x²/(2L)`
 - BMD: `M(x) = −M₁ + V₁·x + wy₁·x²/2 + (wy₂−wy₁)·x³/(6L)`
 - AFD: `N(x) = −N₁ + (N₁+N₂)·t`
 
-### 7.3 보/트러스 컬러 컨투어
+### 7.3 Beam/Truss Color Contour
 
-**Result Component**에서 `σ_xx` 또는 `σ_yy` 선택 시, 보/트러스 전용 모델에서 자동 활성화:
+When `σ_xx` or `σ_yy` is selected in **Result Component** for a beam/truss model:
 
-| 선택 | 표시 내용 |
-|------|-----------|
-| `σ_xx` | **축력 (Axial Force)** 을 요소 위에 그라디언트 색상으로 표시 |
-| `σ_yy` | **휨모멘트 (Mz)** 를 요소 위에 그라디언트 색상으로 표시 |
+| Selection | Displayed content |
+|-----------|------------------|
+| `σ_xx` | **Axial force** shown as gradient color on elements |
+| `σ_yy` | **Bending moment (Mz)** shown as gradient color on elements |
 
-- 파란색 = 음수 (압축/음의 모멘트), 빨간색 = 양수 (인장/양의 모멘트)
-- 30구간 세그먼트로 연속 그라디언트 표현
-- 우측 **Color Bar**에 최솟값/최댓값 범례 표시
+- Blue = negative (compression / negative moment), Red = positive (tension / positive moment)
+- Continuous gradient using 30 segments per element
+- Min/max legend shown in the right **Color Bar**
 
-### 7.4 2D 고체 요소 응력 등고선
+### 7.4 2D Solid Stress Contour
 
-**Result Component** 드롭다운에서 선택:
+Select from the **Result Component** dropdown:
 
-| 항목 | 설명 |
-|------|------|
-| `σ_xx` | x방향 수직응력 |
-| `σ_yy` | y방향 수직응력 |
-| `τ_xy` | 전단응력 |
-| `σ_max` | 최대 주응력 |
-| `σ_min` | 최소 주응력 |
-| **von Mises** | 등가 응력 (설계 기준) |
+| Item | Description |
+|------|-------------|
+| `σ_xx` | Normal stress in x-direction |
+| `σ_yy` | Normal stress in y-direction |
+| `τ_xy` | Shear stress |
+| `σ_max` | Maximum principal stress |
+| `σ_min` | Minimum principal stress |
+| **von Mises** | Equivalent stress (design criterion) |
 
-- 절점 평균 응력(Node Averaging)으로 부드러운 컨투어 표현
-- 우측 **Color Bar** 에 범위 자동 표시
+- Smooth contour via node averaging
+- Range auto-displayed in the right **Color Bar**
 
-### 7.5 반력 오버레이
+### 7.5 Reaction Force Overlay
 
-**Overlays** 섹션에서:
+In the **Overlays** section:
 
-| 옵션 | 설명 |
-|------|------|
-| **Reaction Forces** | 각 지점의 반력 화살표 및 수치 표시 |
-| **Applied Loads** | 적용 하중 화살표 표시 |
+| Option | Description |
+|--------|-------------|
+| **Reaction Forces** | Reaction force arrows and values at each support |
+| **Applied Loads** | Show applied load arrows |
 
-- 반력 레이블: `Rx=`, `Ry=`, `Mz=` (2D 모델 기준)
-- 수평 반력(Rx)과 모멘트 반력(Mz) 레이블이 겹치지 않도록 자동 수직 오프셋 처리
+- Reaction labels: `Rx=`, `Ry=`, `Mz=` (2D models)
+- Vertical offset applied automatically to prevent label overlap between horizontal (Rx) and moment (Mz) reactions
 
 ---
 
-## 8. 결과 출력 및 내보내기
+## 8. Output and Export
 
-### 8.1 Output (텍스트 결과)
+### 8.1 Output (Text Results)
 
-툴바 **Output** 버튼 클릭 → 팝업 창에 다음 내용 표시:
+Click **Output** in the toolbar → popup window displays:
 
 ```
 ── Node Displacements ──
@@ -602,39 +602,39 @@ Elem  N1       V1       M1       N2       V2       M2
   ...
 ```
 
-### 8.2 Report (HTML 리포트)
+### 8.2 Report (HTML Report)
 
-툴바 **Report** 버튼 클릭 → 브라우저 새 탭에 전체 리포트 생성:
+Click **Report** in the toolbar → comprehensive report generated in a new browser tab:
 
-- 모델 정보 (절점·요소·재료·단면 테이블)
-- 절점 변위 결과
-- 반력 결과
-- 요소별 단면력 (보/트러스)
-- 요소별 응력 (2D 고체)
-- 최대/최소값 자동 강조
+- Model information (node, element, material, section tables)
+- Nodal displacement results
+- Reaction results
+- Element section forces (beam/truss)
+- Element stresses (2D solid)
+- Auto-highlighted max/min values
 
-### 8.3 Export (파일 내보내기)
+### 8.3 Export (File Export)
 
-- **VTK 형식** (`.vtu`) 내보내기 지원
-- ParaView 등 외부 후처리 프로그램에서 시각화 가능
+- **VTK format** (`.vtu`) export supported
+- Can be visualized in ParaView and other post-processing software
 
 ### 8.4 Save As
 
-- 현재 모델 전체를 FEPS `.inp` 형식으로 저장
-- 경계조건, 하중, 분포하중(ESURF) 포함
+- Saves the entire current model in FEPS `.inp` format
+- Includes boundary conditions, loads, and distributed loads (ESURF)
 
 ---
 
-## 9. 예제 모델
+## 9. Example Models
 
-> 아래 예제 파일은 `examples/` 폴더에서도 직접 불러올 수 있습니다.
-> FEPS에서 **Open** → 해당 `.inp` 파일 선택 → **▶ Run Analysis**
+> The following example files can also be loaded directly from the `examples/` folder.
+> In FEPS: **Open** → select the `.inp` file → **▶ Run Analysis**
 
 ---
 
-### 예제 1: 단순 트러스 (BAR2)
+### Example 1: Simple Truss (BAR2)
 
-3개 절점, 3개 BAR2 요소로 구성된 단순 2D 트러스입니다.
+A simple 2D truss with 3 nodes and 3 BAR2 elements.
 
 ```
 3 2 2
@@ -655,24 +655,24 @@ BAR2  3  1  1  1  2  0  0
 3  0  0  40.0 -80.0   0.0   0.0
 ```
 
-**구조 설명**
+**Model Description**
 
-| 절점 | 좌표 | 경계조건 |
-|------|------|---------|
-| 1 | (0, 0) | 핀 지점 (Dx·Dy 구속) |
-| 2 | (8, 0) | 롤러 (Dy 구속) |
-| 3 | (4, 3) | Fx=40, Fy=−80 집중하중 |
+| Node | Coordinates | BC |
+|------|-------------|----|
+| 1 | (0, 0) | Pin (Dx·Dy constrained) |
+| 2 | (8, 0) | Roller (Dy constrained) |
+| 3 | (4, 3) | Fx=40, Fy=−80 point load |
 
-- 헤더: `dofNod=2` (트러스, 절점당 2 DOF), `dim=2`
-- 재료: E=20000, ν=0.0
-- 단면: A=1.0 (t, Iz 불필요)
-- **예상 결과**: 절점3에서 하향 변위 발생; 요소 1·2 인장, 요소 3 압축
+- Header: `dofNod=2` (truss, 2 DOF/node), `dim=2`
+- Material: E=20000, ν=0.0
+- Section: A=1.0 (t, Iz not needed)
+- **Expected result**: downward displacement at node 3; elements 1·2 in tension, element 3 in compression
 
 ---
 
-### 예제 2: 외팔보 (BEAM2D)
+### Example 2: Cantilever Beam (BEAM2D)
 
-길이 5m 외팔보에 자유단 집중하중 -10 kN 적용.
+5 m cantilever beam with a concentrated load of −10 kN at the free end.
 
 ```
 2 3 2
@@ -689,26 +689,26 @@ BEAM2D  1  1  1  1  2  0  0  0
 2  0  0  0   0.0 -10.0   0.0   0.0   0.0   0.0
 ```
 
-**구조 설명**
+**Model Description**
 
-| 절점 | 좌표 | 경계조건 |
-|------|------|---------|
-| 1 | (0, 0) | 완전 고정 (Dx·Dy·Rz 구속) |
-| 2 | (5, 0) | Fy=−10 kN 집중하중 |
+| Node | Coordinates | BC |
+|------|-------------|----|
+| 1 | (0, 0) | Fixed (Dx·Dy·Rz constrained) |
+| 2 | (5, 0) | Fy=−10 kN point load |
 
-- 헤더: `dofNod=3` (보, 절점당 3 DOF)
-- 재료: E=200000 MPa, ν=0.3
-- 단면: A=0.01 m², t=1.0, Iz=8.333×10⁻⁶ m⁴ (100mm×100mm 정사각형 단면)
-- **이론 해**: δ = PL³/(3EI) = 10×5³/(3×200000×8.333×10⁻⁶) ≈ **250 mm**
-- **예상 결과**: 절점 2 Uy≈−250; 고정단 반력 Ry=10, Mz=50
+- Header: `dofNod=3` (beam, 3 DOF/node)
+- Material: E=200000 MPa, ν=0.3
+- Section: A=0.01 m², t=1.0, Iz=8.333×10⁻⁶ m⁴ (100mm×100mm square section)
+- **Analytical solution**: δ = PL³/(3EI) = 10×5³/(3×200000×8.333×10⁻⁶) ≈ **250 mm**
+- **Expected result**: Node 2 Uy≈−250; fixed-end reactions Ry=10, Mz=50
 
-> **스케일 팁**: 보 해석 후 `Scale` 슬라이더를 조정하면 처짐 형상을 확인하기 쉽습니다. Diagram Scale로 BMD·SFD 다이어그램 높이를 조절하세요.
+> **Scale tip**: Adjust the `Scale` slider after beam analysis to clearly visualize the deflection shape. Use Diagram Scale to adjust BMD/SFD diagram height.
 
 ---
 
-### 예제 3: 2D 포털 라멘 (BEAM2D + 분포하중)
+### Example 3: 2D Portal Frame (BEAM2D + Distributed Load)
 
-기둥 2개 + 보 1개로 구성된 단층 포털 라멘. 보에 등분포 하중 적용.
+Single-storey portal frame: 2 columns + 1 beam with uniform distributed load.
 
 ```
 4 3 2
@@ -731,24 +731,24 @@ BEAM2D  3  1  1  3  4  0   0   0
 4  1  1  1   0.0  0.0  0.0   0.0   0.0   0.0
 ```
 
-**구조 설명**
+**Model Description**
 
-| 절점 | 좌표 | 경계조건 |
-|------|------|---------|
-| 1 | (0, 0) | 완전 고정 |
-| 2 | (0, 4) | 자유 |
-| 3 | (6, 4) | 자유 |
-| 4 | (6, 0) | 완전 고정 |
+| Node | Coordinates | BC |
+|------|-------------|----|
+| 1 | (0, 0) | Fixed |
+| 2 | (0, 4) | Free |
+| 3 | (6, 4) | Free |
+| 4 | (6, 0) | Fixed |
 
-- 요소 2 (수평 보, 절점2→3): 등분포 하중 wy1=wy2=−20 kN/m (아래 방향)
-- 단면: A=0.02 m², Iz=6.667×10⁻⁵ m⁴ (IPB 200 근사)
-- **예상 결과**: 보 중앙에서 최대 처짐; BMD에서 양단 부모멘트 + 중앙 정모멘트 확인
+- Element 2 (horizontal beam, nodes 2→3): uniform distributed load wy1=wy2=−20 kN/m (downward)
+- Section: A=0.02 m², Iz=6.667×10⁻⁵ m⁴ (approximate IPB 200)
+- **Expected result**: maximum deflection at mid-span; BMD shows negative moments at both ends + positive moment at center
 
 ---
 
-### 예제 4: 2D 고체 캔틸레버 플레이트 (QUAD4)
+### Example 4: 2D Solid Cantilever Plate (QUAD4)
 
-두께 1m 캔틸레버 직사각형 플레이트. QUAD4 요소 4×2 메시.
+1 m thick rectangular cantilever plate, 4×2 QUAD4 mesh.
 
 ```
 15 2 2
@@ -786,34 +786,34 @@ QUAD4  8  1  1  15 17 18 16    0  0  0
 2  1  1   0.0   0.0   0.0   0.0
 ```
 
-> **참고**: 위 예제는 절점 수와 요소 수를 맞춰 직접 타이핑하거나, FEPS에서 **직사각형 폴리곤 그리기 → Mesh Polygon**으로 동등한 메시를 자동 생성할 수 있습니다.
+> **Note**: The above example can be reproduced by typing data directly, or by using FEPS **draw a rectangular polygon → Mesh Polygon** to auto-generate an equivalent mesh.
 
-**더 빠른 방법 — 대화형 메시 생성**
+**Faster method — interactive mesh generation**
 
-1. **Type**: `QUAD4`, **Mat**: M1, **Prop**: P1 선택
-2. **Close Path 체크**
-3. **▶ Start Draw** → 캔버스에서 사각형 4꼭짓점 클릭 (예: (0,0)→(7,0)→(7,1)→(0,1))
+1. **Type**: `QUAD4`, **Mat**: M1, **Prop**: P1
+2. Check **Close Path**
+3. **▶ Start Draw** → click 4 corners on canvas (e.g. (0,0)→(7,0)→(7,1)→(0,1))
 4. **■ End Draw**
 5. **Div** = 4 → **Mesh Polygon**
-6. 좌측 절점들 선택 → **Assign BC/Load** → Dx·Dy 구속
-7. 우측 절점들 선택 → **Assign BC/Load** → Fy = −500 적용
+6. Select left nodes → **Assign BC/Load** → constrain Dx·Dy
+7. Select right nodes → **Assign BC/Load** → apply Fy = −500
 8. **▶ Run Analysis**
 
-**탄성계수 변화 실험 (E-change 검증)**
+**Young's Modulus variation experiment (E-change verification)**
 
-| E 값 | 예상 최대 Uy |
-|------|------------|
-| 1000 | 기준값 δ₀ |
+| E value | Expected max Uy |
+|---------|----------------|
+| 1000 | baseline δ₀ |
 | 2000 | δ₀ / 2 |
 | 500  | δ₀ × 2 |
 
-> 재료를 ✎ 버튼으로 편집 후 재해석하면, **변형 스케일이 유지**되어 위 비례관계가 시각적으로 정확히 확인됩니다. 응력 컨투어(σ_xx, von Mises)는 E에 무관하게 동일합니다.
+> Edit material using the ✎ button and re-run analysis — the **deformation scale stays locked**, so the proportional relationship above is visually verified. Stress contours (σ_xx, von Mises) are independent of E.
 
 ---
 
-### 예제 5: 3D 공간 트러스 (BAR3D)
+### Example 5: 3D Space Truss (BAR3D)
 
-2절점 3D 트러스 — `dofNod=3`, `dim=3`.
+2-node 3D truss — `dofNod=3`, `dim=3`.
 
 ```
 4 3 3
@@ -837,16 +837,15 @@ BAR3D  4  1  1  2  3  0  0
 4  0  0  1   0.0 -100.0   0.0   0.0   0.0   0.0
 ```
 
-- 헤더: `dofNod=3` (3D 트러스), `dim=3`
-- 절점 1: 핀 고정, 절점 2·3: z방향 구속, 절점 4: Fy=−100 하중
-- 3D 렌더링은 등각 투시로 표시됨
+- Header: `dofNod=3` (3D truss), `dim=3`
+- Node 1: pinned; nodes 2·3: z-direction constrained; node 4: Fy=−100 load
+- 3D rendering displayed as isometric perspective
 
 ---
 
-### 예제 6: QUAD5 버블 함수 캔틸레버 (QUAD5)
+### Example 6: QUAD5 Bubble-Function Cantilever (QUAD5)
 
-예제 4와 동일한 형상의 캔틸레버를 5절점 버블 요소로 해석합니다.
-각 요소에 중심절점이 추가되어 총 14절점입니다.
+Same geometry as Example 4, analyzed using the 5-node bubble element. Each element has an additional center node, totaling 14 nodes.
 
 ```
 14 2 2
@@ -890,19 +889,18 @@ QUAD5  4  1  1   7  9 10  8  14    0  0  0
 14  0  0   0.0    0.0   0.0   0.0
 ```
 
-**구조 설명**
+**Model Description**
 
-- 예제 4와 동일한 8×1m 캔틸레버, 동일 재료·하중
-- 절점 11~14: 각 요소의 중심절점 (코너 평균 위치)
-- QUAD5 는 정적 축소 없이 5절점 그대로 해석
-- **비교 포인트**: QUAD4 대비 버블 함수의 효과 확인
+- Same 8×1 m cantilever, material, and load as Example 4
+- Nodes 11–14: center node of each element (average of corner positions)
+- QUAD5 solved with all 5 nodes (no static condensation)
+- **Comparison point**: observe the effect of the bubble function vs. QUAD4
 
 ---
 
-### 예제 7: QUAD9 정적 축소 캔틸레버 (QUAD9)
+### Example 7: QUAD9 Static Condensation Cantilever (QUAD9)
 
-9절점 라그랑지 요소를 정적 축소하여 8절점으로 사용하는 예제입니다.
-중간변 절점과 일관 하중(consistent load)을 적용합니다.
+9-node Lagrange element condensed to 8 nodes. Mid-side nodes and consistent loading are applied.
 
 ```
 23 2 2
@@ -964,512 +962,509 @@ QUAD9  4  1  1   7  9 10  8  21 22 23 19    0  0  0
 23  0  0   0.0    0.0   0.0   0.0
 ```
 
-**구조 설명**
+**Model Description**
 
-| 항목 | 내용 |
-|------|------|
-| 절점 1~10 | 코너 절점 (예제 4와 동일 위치) |
-| 절점 11~23 | 중간변(midside) 절점 + 좌측 변 중간 절점 14 |
-| 좌측 고정 | 절점 1, 2, 14 (코너 2개 + 중간변 1개) |
-| 우측 하중 | 일관 분배: 코너 9,10에 −16.667, 중간변 22에 −66.667 (합계 −100 kN) |
+| Item | Detail |
+|------|--------|
+| Nodes 1–10 | Corner nodes (same positions as Example 4) |
+| Nodes 11–23 | Mid-side nodes + left-edge midpoint node 14 |
+| Left fixed | Nodes 1, 2, 14 (2 corners + 1 mid-side) |
+| Right load | Consistent distribution: corners 9,10 receive −16.667, mid-side 22 receives −66.667 (total −100 kN) |
 
-- **정적 축소**: QUAD9 의 `condense:[8]` 설정으로 중심절점(9번째)이 자동 제거됨
-- **절점 입력**: 8개 절점만 입력 (중심절점은 자동 생성)
-- **일관 하중**: 2차 요소의 우측 변에 Simpson 법칙으로 분배 (P/6 : 4P/6 : P/6)
-- **이론 해**: δ = PL³/(3EI) = 100×8³ / (3×1000×1/12) ≈ **204.8**
-- **예상 결과**: 끝단 uy ≈ **−204.9** (이론해의 99.95%), QUAD4 의 −77.6 대비 현저히 정확
+- **Static condensation**: `condense:[8]` on QUAD9 automatically removes the center node (9th)
+- **Node input**: only 8 nodes specified (center node auto-generated)
+- **Consistent load**: distributed by Simpson's rule along the right edge (P/6 : 4P/6 : P/6)
+- **Analytical solution**: δ = PL³/(3EI) = 100×8³/(3×1000×1/12) ≈ **204.8**
+- **Expected result**: tip uy ≈ **−204.9** (99.95% of analytical), significantly more accurate than QUAD4's −77.6
 
-> **비교**: 동일 메시 밀도에서 QUAD4 → 이론해의 37.9%, QUAD9(축소) → 이론해의 99.95%. 고차 요소의 우월한 수렴 성능을 확인할 수 있습니다.
-
----
-
-## 10. 단위 및 주의사항
-
-### 10.1 단위계
-
-FEPS는 **일관 단위계(Consistent Unit System)** 를 사용합니다.
-단위계를 통일하면 결과가 올바르게 계산됩니다.
-
-| 물리량 | SI 단위 예 | 공학 단위 예 |
-|--------|-----------|-------------|
-| 길이 | m | mm |
-| 탄성계수 E | Pa (N/m²) | MPa (N/mm²) |
-| 하중 | N | N |
-| 응력 | Pa | MPa |
-| 단면2차모멘트 | m⁴ | mm⁴ |
-
-> SI 단위계 사용 시: `E = 200e9 Pa`, `F = 1000 N`, `L = 1.0 m`
-> mm 단위계 사용 시: `E = 200000 MPa`, `F = 1000 N`, `L = 1000 mm`
-
-### 10.2 주의사항
-
-1. **자유도 수 일치**: 헤더의 `dofNod`와 실제 요소 유형이 일치해야 합니다.
-   - 2D 보/프레임: `dofNod = 3`
-   - 2D 트러스: `dofNod = 2`
-   - 3D 보/프레임: `dofNod = 6`
-   - 3D 트러스: `dofNod = 3`
-
-2. **최소 구속 조건**: 구조물이 안정(정적 정정 이상)이 되도록 충분한 구속조건을 설정해야 합니다. 구속이 부족하면 특이 행렬(Singular Matrix)이 되어 해석 실패.
-
-3. **절점 번호**: 1부터 순차적으로 부여 권장. 간격이 크면 행렬 크기가 커져 계산 비효율.
-
-4. **보 요소 분포하중**: `wy1`, `wy2` 값은 **전역 y방향** 기준이며, 양수 = 위 방향.
-
-5. **온도 하중 (ΔT)**: 요소 정의 시 `ΔT` 값 설정 + 단면 특성에 `alpha` 입력 필요.
-
-6. **대규모 모델**: 본 프로그램은 Dense 행렬 LU 분해를 사용하므로, 자유도가 수천 개 이상이면 계산 시간이 증가합니다. 수백~1000 자유도 이하의 교육/연구용 모델에 최적화되어 있습니다.
+> **Comparison**: At the same mesh density, QUAD4 achieves 37.9% of the analytical solution, while QUAD9 (condensed) achieves 99.95%. The superior convergence of higher-order elements is clearly demonstrated.
 
 ---
 
+## 10. Units and Notes
+
+### 10.1 Unit System
+
+FEPS uses a **consistent unit system**. Using a unified unit system ensures correct results.
+
+| Quantity | SI unit example | Engineering unit example |
+|----------|----------------|-------------------------|
+| Length | m | mm |
+| Young's modulus E | Pa (N/m²) | MPa (N/mm²) |
+| Force | N | N |
+| Stress | Pa | MPa |
+| Second moment of area | m⁴ | mm⁴ |
+
+> SI unit system: `E = 200e9 Pa`, `F = 1000 N`, `L = 1.0 m`
+> mm unit system: `E = 200000 MPa`, `F = 1000 N`, `L = 1000 mm`
+
+### 10.2 Important Notes
+
+1. **DOF count consistency**: The `dofNod` in the header must match the element type used.
+   - 2D beam/frame: `dofNod = 3`
+   - 2D truss: `dofNod = 2`
+   - 3D beam/frame: `dofNod = 6`
+   - 3D truss: `dofNod = 3`
+
+2. **Minimum constraints**: Apply sufficient boundary conditions to ensure stability (at least statically determinate). Insufficient constraints result in a singular matrix and analysis failure.
+
+3. **Node numbering**: Sequential numbering from 1 is recommended. Large gaps in node IDs increase matrix size and reduce efficiency.
+
+4. **Beam distributed loads**: `wy1`, `wy2` values are in the **global y-direction**; positive = upward.
+
+5. **Thermal loads (ΔT)**: Set `ΔT` in the element definition AND provide `alpha` in the section properties.
+
+6. **Large models**: This program uses dense-matrix LU decomposition. Computation time increases rapidly for models with thousands of DOFs or more. The program is optimized for educational/research models with up to several hundred to ~1000 DOFs.
+
 ---
 
-## 11. 요소 코드 에디터 (학생 요소 개발)
+## 11. Element Code Editor (Student Element Development)
 
-FEPS는 학생 또는 개발자가 **브라우저 안에서 직접 JavaScript 코드로 새로운 유한요소를 작성하고 즉시 해석에 사용**할 수 있는 내장 코드 에디터를 제공합니다.
+FEPS provides a built-in code editor that allows students or developers to **write new finite elements in JavaScript directly in the browser and immediately use them in analysis**.
 
-### 11.1 에디터 열기
+### 11.1 Opening the Editor
 
-툴바의 **요소 편집기** 버튼을 클릭합니다.
+Click the **Element Editor** button in the toolbar.
 
-### 11.2 화면 구성
+### 11.2 Screen Layout
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  요소 코드 에디터 (Element Code Editor)                  │
-│  템플릿: [드롭다운▼]  [불러오기]  [▶ 등록]  [초기화]    │
+│  Element Code Editor                                     │
+│  Template: [dropdown▼]  [Load]  [▶ Register]  [Reset]   │
 ├─────────────────────────────┬────────────────────────────┤
-│  코드 입력 (JavaScript)     │  등록된 요소 목록          │
-│                             │  (💾=저장됨, 🗑️=삭제)      │
+│  Code Input (JavaScript)    │  Registered Elements       │
+│                             │  (💾=saved, 🗑️=delete)     │
 │  textarea                   ├────────────────────────────┤
-│                             │  실행 로그                 │
+│                             │  Execution Log             │
 ├─────────────────────────────┴────────────────────────────┤
-│  SRI: [☐ 전단잠김 방지 활성화]                           │
-│        α 정수압(full): [1.0]  β 전단(축소): [1.0]        │
-│        축소 차수: [자동▼]  [코드에 적용]                 │
+│  SRI: [☐ Enable shear-locking prevention]                │
+│        α hydrostatic (full): [1.0]  β deviatoric: [1.0]  │
+│        Reduced order: [auto▼]  [Apply to code]           │
 ├──────────────────────────────────────────────────────────┤
-│  [💾 내보내기]  [📂 파일 열기]    [🗑️ 저장 초기화]  [닫기] │
+│  [💾 Export]  [📂 Open File]    [🗑️ Clear Storage]  [Close] │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 11.3 제공 템플릿
+### 11.3 Available Templates
 
-드롭다운에서 템플릿을 선택한 후 **불러오기** 를 클릭합니다.
+Select a template from the dropdown, then click **Load**.
 
-| 템플릿 | 설명 |
-|--------|------|
-| **QUAD4** | 4절점 이중선형 사각형 — 기본 참조 요소 (2×2 가우스) |
-| **QUAD4-SRI** | QUAD4 + 선택적 축소 적분 (SRI) — 전단잠김 방지 |
-| **QUAD5** | 버블 함수 보강 5절점 사각형 — Gauss 적분 |
-| **QUAD8** | 8절점 세렌디피티 사각형 |
-| **QUAD9** | 9절점 라그랑지 사각형 |
-| **TRIG3** | 3절점 일차 삼각형 (CST) — 기본 참조 요소 (1점 가우스) |
-| **TRIG6** | 6절점 라그랑지 삼각형 |
-| **BAR2_3N** | 3절점 2D 봉 요소 (축력) |
-| **TIMBEAM2D_2N** | 2절점 티모셴코 보 (전단변형 포함) |
-| **TIMBEAM2D_3N** | 3절점 티모셴코 보 |
-| **빈 템플릿** | solid2d / bar1d / beam2d_tim 형태 기본 구조 |
+| Template | Description |
+|----------|-------------|
+| **QUAD4** | 4-node bilinear quadrilateral — basic reference element (2×2 Gauss) |
+| **QUAD4-SRI** | QUAD4 + Selective Reduced Integration (SRI) — shear-locking cure |
+| **QUAD5** | 5-node bubble-function-enhanced quadrilateral — Gauss integration |
+| **QUAD8** | 8-node serendipity quadrilateral |
+| **QUAD9** | 9-node Lagrange quadrilateral |
+| **TRIG3** | 3-node linear triangle (CST) — basic reference element (1-point Gauss) |
+| **TRIG6** | 6-node Lagrange triangle |
+| **BAR2_3N** | 3-node 2D bar element (axial) |
+| **TIMBEAM2D_2N** | 2-node Timoshenko beam (shear deformation included) |
+| **TIMBEAM2D_3N** | 3-node Timoshenko beam |
+| **Blank template** | Basic structure for solid2d / bar1d / beam2d_tim |
 
-> **등록된 요소 목록 정렬**: 에디터 오른쪽 패널의 요소 목록은 위 템플릿 드롭다운 순서와 동일하게 정렬됩니다 (QUAD4, QUAD4SRI, QUAD5, QUAD8, QUAD9, TRIG3, TRIG6, …).
+> **Registered element list sorting**: The element list in the right panel of the editor is sorted in the same order as the template dropdown (QUAD4, QUAD4SRI, QUAD5, QUAD8, QUAD9, TRIG3, TRIG6, …).
 
-### 11.4 요소 등록
+### 11.4 Registering an Element
 
-1. 코드 작성 완료 후 **▶ 등록 (Register)** 클릭
-2. 실행 로그에 등록 성공/실패 메시지 확인
-3. 등록된 요소는 즉시 요소 유형 드롭다운에서 선택 가능
-4. **localStorage 자동 저장**: 등록 성공 시 브라우저 로컬 저장소에 자동 저장됨 → 페이지 새로고침 후에도 자동 복원
+1. After completing the code, click **▶ Register**
+2. Check the execution log for success/failure messages
+3. Registered elements are immediately available in the element type dropdown
+4. **Auto-saved to localStorage**: on successful registration, the code is saved to the browser's local storage and automatically restored after page reload
 
-### 11.5 파일 저장 및 불러오기
+### 11.5 File Save and Load
 
-| 버튼 | 동작 |
-|------|------|
-| **💾 내보내기** | 에디터의 현재 코드를 `.js` 파일로 로컬 다운로드 |
-| **📂 파일 열기** | 로컬 `.js` 파일을 에디터에 불러옴 (등록은 별도 클릭 필요) |
+| Button | Action |
+|--------|--------|
+| **💾 Export** | Download the current editor code as a `.js` file |
+| **📂 Open File** | Load a local `.js` file into the editor (register separately) |
 
-### 11.6 저장된 요소 관리
+### 11.6 Managing Saved Elements
 
-- 좌측 목록에서 💾 아이콘이 붙은 요소 = localStorage에 저장된 요소
-- 목록 항목 옆 **🗑️** 버튼으로 해당 요소만 localStorage에서 삭제
-- **🗑️ 저장 초기화**: 모든 저장 데이터 삭제 후 페이지 새로고침
+- Elements marked with 💾 in the list = saved in localStorage
+- Click **🗑️** beside an entry to delete that element from localStorage
+- **🗑️ Clear Storage**: delete all saved data and reload the page
 
-> **팁**: 수업에서 여러 학생이 동시에 접속해도 localStorage는 **브라우저별로 완전히 독립**됩니다. 각 학생의 코드가 서로 영향을 주지 않습니다.
+> **Tip**: When multiple students access the app simultaneously in class, localStorage is **completely independent per browser**. Each student's code does not affect others.
 
-### 11.7 요소 코드 구조
+### 11.7 Element Code Structure
 
 ```javascript
 FepsElementRegistry.register({
-  // ── 필수 필드 ──
-  name    : 'MY_ELEM',      // 요소 유형 이름 (대문자, 고유값)
-  category: 'solid2d',      // 분류: 'solid2d' | 'bar1d' | 'beam2d_tim'
-  nNodes  : 4,              // 절점 수
-  dofNode : 2,              // 절점당 자유도 수
+  // ── Required fields ──
+  name    : 'MY_ELEM',      // Element type name (uppercase, unique)
+  category: 'solid2d',      // 'solid2d' | 'bar1d' | 'beam2d_tim'
+  nNodes  : 4,              // Number of nodes
+  dofNode : 2,              // DOFs per node
 
-  // ── (선택) 정적 축소 ──
-  condense: [8],             // 축소할 내부 노드 인덱스 배열 (0-based)
+  // ── (Optional) Static condensation ──
+  condense: [8],             // 0-based internal node index array to condense
 
-  // ── (선택) 선택적 축소 적분 (SRI) ──
-  sri               : true,  // SRI 활성화 — 전단잠김 방지
-  sriAlpha          : 1.0,   // α 정수압(체적) 부분 반영 비율 (full 적분)
-  sriBeta           : 1.0,   // β 전단(왜곡) 부분 반영 비율 (축소 적분)
-  gaussOrderReduced : 1,     // 축소 적분 가우스 차수 (생략 시 자동: nGauss-1)
+  // ── (Optional) Selective Reduced Integration (SRI) ──
+  sri               : true,  // Enable SRI — shear-locking prevention
+  sriAlpha          : 1.0,   // α hydrostatic (volumetric) part weight (full integration)
+  sriBeta           : 1.0,   // β deviatoric (shear) part weight (reduced integration)
+  gaussOrderReduced : 1,     // Reduced integration Gauss order (omit for auto: nGauss-1)
 
-  // ── 강성 행렬 계산 ──
+  // ── Stiffness matrix computation ──
   stiffness(nodes, mat, prop) {
     // nodes: [{x, y}, ...], mat: {E, nu, rho}, prop: {A, t, Iz, ...}
-    // 반환: { esm: number[][] }  (nDof × nDof 행렬, nDof = nNodes × dofNode)
-    const esm = /* ... 가우스 적분 등 ... */;
+    // Returns: { esm: number[][] }  (nDof × nDof matrix, nDof = nNodes × dofNode)
+    const esm = /* ... Gauss integration etc. ... */;
     return { esm };
   },
 
-  // ── (선택) 응력 계산 ──
+  // ── (Optional) Stress computation ──
   stress(nodes, mat, prop, disp) {
-    // disp: [u1, v1, u2, v2, ...] (전역 변위 벡터에서 추출된 절점 변위)
-    // 반환: [{ x, y, sxx, syy, txy, smx, smn, mises }, ...]
+    // disp: [u1, v1, u2, v2, ...] (nodal displacements extracted from global vector)
+    // Returns: [{ x, y, sxx, syy, txy, smx, smn, mises }, ...]
     return [];
   }
 });
 ```
 
-#### `condense` — 정적 축소 (Static Condensation)
+#### `condense` — Static Condensation
 
-내부 절점(bubble node, center node 등)을 요소 수준에서 자동 제거하여, 전역 어셈블리에서는 외부 절점만 다루도록 합니다.
+Automatically removes internal nodes (bubble nodes, center nodes, etc.) at the element level, so the global assembly only handles external nodes.
 
-| 항목 | 설명 |
-|------|------|
-| **형식** | `condense: [인덱스, ...]` — 0-based 내부 노드 인덱스 배열 |
-| **동작** | `K* = K_ee − K_ei · K_ii⁻¹ · K_ie` (축소된 강성행렬) |
-| **nNodes 변경** | 원래 값에서 축소 절점 수를 뺀 값으로 자동 변경 |
-| **응력 복원** | `u_i = K_ii⁻¹ · (f_i − K_ie · u_e)` 로 내부 변위 자동 복원 후 응력 계산 |
-| **좌표 복원** | 내부 노드 좌표 = 코너 평균 (또는 `internalNodeCoords()` 커스텀 함수) |
+| Item | Description |
+|------|-------------|
+| **Format** | `condense: [index, ...]` — 0-based internal node index array |
+| **Action** | `K* = K_ee − K_ei · K_ii⁻¹ · K_ie` (condensed stiffness matrix) |
+| **nNodes update** | Automatically reduced by the number of condensed nodes |
+| **Stress recovery** | `u_i = K_ii⁻¹ · (f_i − K_ie · u_e)` — internal displacements auto-recovered before stress computation |
+| **Coordinate recovery** | Internal node coordinates = corner average (or custom `internalNodeCoords()` function) |
 
-**예시 — QUAD9 (9절점 → 8절점)**:
+**Example — QUAD9 (9-node → 8-node)**:
 ```javascript
 FepsElementRegistry.register({
   name:     'QUAD9',
   category: 'solid2d',
-  nNodes:    9,           // 원래 절점 수
-  condense: [8],          // 인덱스 8 (9번째 절점 = 중심) 축소
-  // → 등록 후 nNodes=8 로 자동 변경
-  // → 파서·솔버는 8절점 요소로 인식
-  shapeN(xi, eta)  { /* 9절점 형상함수 */ },
-  shapeDN(xi, eta) { /* 9절점 형상함수 미분 */ }
+  nNodes:    9,           // original node count
+  condense: [8],          // index 8 (9th node = center) condensed
+  // → nNodes=8 after registration
+  // → parser and solver treat it as an 8-node element
+  shapeN(xi, eta)  { /* 9-node shape functions */ },
+  shapeDN(xi, eta) { /* 9-node shape function derivatives */ }
 });
 ```
 
-> **주의**: 정적 축소는 내부 DOF의 강성행렬(K_ii)이 양정치(positive definite)일 때만 올바르게 동작합니다. 버블 함수 기반 요소(QUAD5 등)에서는 K_ii의 대각 성분이 음수가 될 수 있으므로 주의가 필요합니다.
+> **Warning**: Static condensation is only correct when the internal DOF stiffness matrix K_ii is positive definite. For bubble-function elements (QUAD5 etc.), diagonal entries of K_ii may become negative — use with caution.
 
-#### `sri` — 선택적 축소 적분 (SRI: Selective Reduced Integration)
+#### `sri` — Selective Reduced Integration (SRI)
 
-저차 2D 고체 요소(특히 QUAD4)는 굽힘 지배 문제에서 **전단잠김(shear locking)** 현상으로 인해 실제보다 훨씬 딱딱하게 거동합니다. SRI는 구성 행렬 **D**를 정수압(체적) 부분과 전단(왜곡) 부분으로 분리한 뒤 각각 다른 가우스 점 수로 적분하여 이 문제를 해결합니다.
+Low-order 2D solid elements (especially QUAD4) suffer from **shear locking** in bending-dominated problems, making the element appear far stiffer than it should. SRI splits the constitutive matrix **D** into a hydrostatic (volumetric) part and a deviatoric (shear) part, then integrates each with a different Gauss point count to resolve this issue.
 
-##### 수학적 원리
+##### Mathematical Principle
 
-강성 행렬을 두 부분의 합으로 표현합니다:
+The stiffness matrix is expressed as the sum of two parts:
 
 $$K = \alpha \cdot K_\text{vol}(D_\text{vol},\, n_\text{Gauss}) + \beta \cdot K_\text{dev}(D_\text{dev},\, n_\text{Red})$$
 
-| 항목 | 설명 |
-|------|------|
-| **D_vol** | 정수압(체적변화) 부분 — full 가우스 적분 적용 |
-| **D_dev** | 전단(왜곡) 부분 — 축소 가우스 적분 적용 |
-| **α** | 정수압 부분 반영 비율 (기본값 1.0) |
-| **β** | 전단 부분 반영 비율 (기본값 1.0) |
-| **n_Red** | 축소 가우스 차수 (기본값: n_Gauss − 1, 삼각형은 자동) |
+| Term | Description |
+|------|-------------|
+| **D_vol** | Hydrostatic (volumetric) part — full Gauss integration |
+| **D_dev** | Deviatoric (shear) part — reduced Gauss integration |
+| **α** | Hydrostatic part weight (default 1.0) |
+| **β** | Deviatoric part weight (default 1.0) |
+| **n_Red** | Reduced Gauss order (default: n_Gauss − 1; auto for triangles) |
 
-**구성 행렬 분해 (검증: D_vol + D_dev = D)**
+**Constitutive matrix decomposition (verified: D_vol + D_dev = D)**
 
-평면응력(Plane Stress), G = E / (2(1+ν)):
+Plane Stress, G = E / (2(1+ν)):
 
 $$D_\text{vol} = \frac{E}{2(1-\nu)} \begin{bmatrix} 1 & 1 & 0 \\ 1 & 1 & 0 \\ 0 & 0 & 0 \end{bmatrix}, \quad D_\text{dev} = G \begin{bmatrix} 1 & -1 & 0 \\ -1 & 1 & 0 \\ 0 & 0 & 1 \end{bmatrix}$$
 
-평면변형률(Plane Strain), λ = Eν / ((1+ν)(1−2ν)), G = E / (2(1+ν)):
+Plane Strain, λ = Eν / ((1+ν)(1−2ν)), G = E / (2(1+ν)):
 
 $$D_\text{vol} = \lambda \begin{bmatrix} 1 & 1 & 0 \\ 1 & 1 & 0 \\ 0 & 0 & 0 \end{bmatrix}, \quad D_\text{dev} = \begin{bmatrix} 2G & 0 & 0 \\ 0 & 2G & 0 \\ 0 & 0 & G \end{bmatrix}$$
 
-##### SRI 설정 방법
+##### How to Enable SRI
 
-**방법 1 — 요소 디스크립터에 직접 입력**:
+**Method 1 — Directly in the element descriptor**:
 ```javascript
 FepsElementRegistry.register({
   name    : 'QUAD4SRI',
   category: 'solid2d',
   nNodes  : 4,
-  gaussOrder        : 2,      // 정수압 부분 full 적분 차수
+  gaussOrder        : 2,      // full integration order for hydrostatic part
   sri               : true,
   sriAlpha          : 1.0,   // α
   sriBeta           : 1.0,   // β
-  gaussOrderReduced : 1,     // 전단 부분 축소 적분 차수 (1×1)
+  gaussOrderReduced : 1,     // reduced integration order for deviatoric part (1×1)
   constitModel      : 'planeStress',
-  shapeN(xi, eta)  { /* QUAD4 형상함수 */ },
-  shapeDN(xi, eta) { /* QUAD4 형상함수 미분 */ }
+  shapeN(xi, eta)  { /* QUAD4 shape functions */ },
+  shapeDN(xi, eta) { /* QUAD4 shape function derivatives */ }
 });
 ```
 
-**방법 2 — SRI 패널 GUI 사용**:
+**Method 2 — Using the SRI panel GUI**:
 
-1. 코드 에디터에서 요소 코드 작성/불러오기
-2. 하단 **SRI 패널**에서 "전단잠김 방지 활성화" 체크박스 클릭
-3. α, β, 축소 차수 값 조정
-4. **코드에 적용** 버튼 클릭 → 코드 textarea에 sri 관련 행 자동 삽입
-5. **▶ 등록** 클릭
+1. Write/load element code in the code editor
+2. Check "Enable shear-locking prevention" in the bottom **SRI panel**
+3. Adjust α, β, and reduced order values
+4. Click **Apply to code** → SRI-related lines auto-inserted into the textarea
+5. Click **▶ Register**
 
-##### QUAD4 vs QUAD4-SRI 성능 비교
+##### QUAD4 vs QUAD4-SRI Performance Comparison
 
-동일한 순수 굽힘 캔틸레버 모델(QUAD4, 거친 메시):
+Same pure-bending cantilever model (QUAD4, coarse mesh):
 
-| 요소 | 끝단 처짐 / 이론해 |
-|------|-----------------|
-| QUAD4 (표준, 2×2) | ~38% (전단잠김으로 과도하게 딱딱함) |
-| QUAD4-SRI (α=1, β=1, nRed=1) | ~98% (전단잠김 해소) |
+| Element | Tip deflection / analytical |
+|---------|---------------------------|
+| QUAD4 (standard, 2×2) | ~38% (overly stiff due to shear locking) |
+| QUAD4-SRI (α=1, β=1, nRed=1) | ~98% (shear locking eliminated) |
 
-> **주의**: α=1, β=1이 표준 SRI 설정입니다. α/β 값을 조정하면 두 부분의 상대적 기여도를 제어할 수 있습니다.
+> **Note**: α=1, β=1 is the standard SRI setting. Adjusting α/β controls the relative contribution of each part.
 
-#### category 분류표
+#### Category Reference Table
 
-| category | dofNode | 절점당 자유도 | 사용 용도 |
-|----------|---------|-------------|---------|
-| `solid2d` | 2 | u, v (수평·수직) | 2D 평면응력/변형률 |
-| `bar1d` | 2 | u, v (전체좌표) | 2D 봉/트러스 |
-| `beam2d_tim` | 3 | u, v, θ | 2D 티모셴코 보 |
+| category | dofNode | DOFs per node | Usage |
+|----------|---------|--------------|-------|
+| `solid2d` | 2 | u, v (horizontal · vertical) | 2D plane stress/strain |
+| `bar1d` | 2 | u, v (global coordinates) | 2D bar/truss |
+| `beam2d_tim` | 3 | u, v, θ | 2D Timoshenko beam |
 
 ---
 
-## 12. 디버그 모드 — 행렬·단면력 뷰어
+## 12. Debug Mode — Matrix and Force Viewer
 
-디버그 모드는 학생들이 **작성한 요소의 강성 행렬이 올바른지 수치로 확인**하고, 해석 결과(변위·절점력·전체 강성 행렬)를 검증하기 위한 도구입니다.
+Debug mode is a tool for students to **numerically verify that a written element's stiffness matrix is correct** and to validate analysis results (displacements, nodal forces, global stiffness matrix).
 
-### 12.1 디버그 모드 활성화
+### 12.1 Activating Debug Mode
 
-1. 툴바의 **디버그** 버튼 클릭 → 버튼 색상이 녹색으로 변하고 "ON" 표시
-2. **▶ Run Analysis** 실행
-3. 해석 완료 시 **디버그 뷰어가 자동으로 열림**
+1. Click the **Debug** button in the toolbar → button turns green and shows "ON"
+2. Run **▶ Run Analysis**
+3. When analysis completes, the **debug viewer opens automatically**
 
-> 디버그 버튼을 다시 클릭하면 비활성화됩니다.
+> Click the Debug button again to deactivate.
 >
-> **행렬 보기** 버튼: 디버그 모드 상태와 무관하게, 마지막 해석 데이터를 바탕으로 뷰어를 수동으로 열 수 있습니다.
+> **View Matrix** button: opens the viewer manually at any time after analysis, regardless of debug mode state.
 
-### 12.2 뷰어 탭 구성
+### 12.2 Viewer Tabs
 
-| 탭 | 내용 |
-|----|------|
-| **요약** | 전체 자유도 수(nDOF), 자유 자유도(nFree), 구속 자유도(nConst), 요소 수, 전체 K 저장 여부 |
-| **K_e 강성행렬** | 선택한 요소의 강성 행렬 — n×n 스크롤 테이블, 대각 성분 강조, EFT(전역 자유도 번호) 표시 |
-| **u_e 절점변위** | 선택한 요소의 절점별 변위 — 로컬 DOF / 전역 DOF / 절점 ID / 방향 / 값 |
-| **f_e 절점력** | f_e = K_e × u_e — 평형 검증용 요소 절점력 |
-| **전체 K** | 조립된 전역 강성 행렬 (nDOF ≤ 200인 모델에서만 저장·표시) |
+| Tab | Content |
+|-----|---------|
+| **Summary** | Total DOFs (nDOF), free DOFs (nFree), constrained DOFs (nConst), element count, global K storage status |
+| **K_e stiffness** | Selected element stiffness matrix — n×n scrollable table, diagonal entries highlighted, EFT (global DOF numbers) shown |
+| **u_e displacements** | Selected element nodal displacements — local DOF / global DOF / node ID / direction / value |
+| **f_e nodal forces** | f_e = K_e × u_e — element nodal forces for equilibrium verification |
+| **Global K** | Assembled global stiffness matrix (stored and displayed only when nDOF ≤ 200) |
 
-### 12.3 요소 선택
+### 12.3 Element Selection
 
-뷰어 상단의 **요소 선택** 드롭다운에서 원하는 요소를 선택하면 **K_e / u_e / f_e** 탭의 데이터가 자동 갱신됩니다.
+Select an element from the **Element** dropdown at the top of the viewer — the **K_e / u_e / f_e** tab data updates automatically.
 
 ```
-드롭다운: E3 · TIMBEAM2D_2N · 2절점 (6DOF)
-              ↑요소ID  ↑유형         ↑DOF수
+Dropdown: E3 · TIMBEAM2D_2N · 2 nodes (6DOF)
+           ↑elem ID  ↑type         ↑DOF count
 ```
 
-### 12.4 강성 행렬 표 보는 법
+### 12.4 Reading the Stiffness Matrix Table
 
 ```
        i\j    0      1      2      3
-        0  [K00]  [K01]  [K02]  [K03]   ← 행 i=0 (전역 DOF 번호)
+        0  [K00]  [K01]  [K02]  [K03]   ← row i=0 (global DOF number)
         1  [K10]  [K11]  ...
 ```
 
-- **파란색 굵은 셀**: 대각 성분 (K_ii)
-- **회색 희미한 셀**: 0에 가까운 값 (< 1e-14)
-- 행·열 헤더에 표시된 번호: EFT (Element Freedom Table) — 전역 강성 행렬 내 위치
+- **Bold blue cell**: diagonal entry (K_ii)
+- **Faded gray cell**: near-zero value (< 1e-14)
+- Numbers in row/column headers: EFT (Element Freedom Table) — position in global stiffness matrix
 
-### 12.5 평형 검증 (f_e 탭)
+### 12.5 Equilibrium Verification (f_e tab)
 
-`f_e = K_e × u_e` 의 값이 물리적으로 의미 있는 범위에 있는지 확인합니다.
+Check that `f_e = K_e × u_e` values are in a physically meaningful range.
 
-- 내력의 합이 0에 가까울수록 올바른 평형 조건
-- 특정 DOF의 절점력이 비정상적으로 크면 강성 행렬 오류 가능성
+- Internal forces summing close to zero → correct equilibrium
+- An abnormally large nodal force at a specific DOF → possible stiffness matrix error
 
-### 12.6 전체 K 저장 제한
+### 12.6 Global K Storage Limit
 
-| nDOF | 전체 K 저장 |
-|------|------------|
-| ≤ 200 | ✅ 저장·표시 |
-| > 200 | ⚠️ 메모리 절약을 위해 생략 |
+| nDOF | Global K storage |
+|------|-----------------|
+| ≤ 200 | ✅ Stored and displayed |
+| > 200 | ⚠️ Omitted to save memory |
 
-소규모 테스트 모델(몇 개 요소)에서 확인하는 것을 권장합니다.
+It is recommended to verify with small test models (a few elements).
 
-### 12.7 디버그 활용 예시
+### 12.7 Debug Workflow Example
 
-**학생 요소 검증 절차:**
+**Student element verification procedure:**
 
-1. 요소 코드 에디터에서 새 요소 등록
-2. 해당 요소 하나만 포함한 단순 모델 생성 (예: 양단 고정 봉)
-3. 디버그 모드 ON → Run Analysis
-4. **K_e 탭**: 강성 행렬이 대칭인지, 대각 성분이 양수인지 확인
-5. **u_e 탭**: 구속 절점의 변위가 0인지 확인
-6. **f_e 탭**: 절점력이 적용 하중과 일치하는지 확인
-7. **전체 K 탭**: 구속 자유도 행·열이 제대로 처리됐는지 확인
+1. Register the new element in the code editor
+2. Create a simple model containing only that element (e.g. a fixed-fixed bar)
+3. Debug mode ON → Run Analysis
+4. **K_e tab**: verify the stiffness matrix is symmetric and diagonal entries are positive
+5. **u_e tab**: verify constrained node displacements are zero
+6. **f_e tab**: verify nodal forces match the applied loads
+7. **Global K tab**: verify constrained DOF rows/columns are correctly handled
 
 ---
 
-## 13. FepsElementCore API 레퍼런스
+## 13. FepsElementCore API Reference
 
-`FepsElementCore` 는 학생 요소 코드에서 사용할 수 있는 유틸리티 함수 모음입니다.
+`FepsElementCore` is a collection of utility functions available for use in student element code.
 
-### 13.1 수치 적분
+### 13.1 Numerical Integration
 
-#### `gaussPts2D(n)` — 2D 가우스 포인트
+#### `gaussPts2D(n)` — 2D Gauss Points
 
 ```javascript
 const { pts, wts } = FepsElementCore.gaussPts2D(2);
-// pts: [[ξ₁,η₁], [ξ₂,η₂], ...] (n² 포인트)
-// wts: [w₁, w₂, ...]           (가중값)
+// pts: [[ξ₁,η₁], [ξ₂,η₂], ...] (n² points)
+// wts: [w₁, w₂, ...]            (weights)
 ```
 
-| 인수 n | 포인트 수 |
-|--------|---------|
-| 1 | 1 (1×1 = 1개) |
+| Argument n | Number of points |
+|------------|-----------------|
+| 1 | 1 (1×1) |
 | 2 | 4 (2×2) |
 | 3 | 9 (3×3) |
 
-#### `gaussPts1D(n)` — 1D 가우스 포인트
+#### `gaussPts1D(n)` — 1D Gauss Points
 
 ```javascript
 const { pts, wts } = FepsElementCore.gaussPts1D(3);
-// 1D 구간 [-1, 1] 에서 n개 포인트
+// n points on the interval [-1, 1]
 ```
 
-### 13.2 형상함수
+### 13.2 Shape Functions
 
-#### `shapeQuad4(xi, eta)` — QUAD4 형상함수
+#### `shapeQuad4(xi, eta)` — QUAD4 Shape Functions
 
 ```javascript
 const { N, dN } = FepsElementCore.shapeQuad4(xi, eta);
-// N:  [N1, N2, N3, N4]         — 형상함수 값
-// dN: [[dN1/dξ, dN1/dη], ...]  — ξ·η 편미분
+// N:  [N1, N2, N3, N4]         — shape function values
+// dN: [[dN1/dξ, dN1/dη], ...]  — ξ·η partial derivatives
 ```
 
-#### `shapeTrig3(xi, eta)` — TRIG3 형상함수
+#### `shapeTrig3(xi, eta)` — TRIG3 Shape Functions
 
 ```javascript
 const { N, dN } = FepsElementCore.shapeTrig3(xi, eta);
 ```
 
-### 13.3 야코비안 및 변환
+### 13.3 Jacobian and Transformation
 
-#### `jacobian2D(dN, coords)` — 2D 야코비안
+#### `jacobian2D(dN, coords)` — 2D Jacobian
 
 ```javascript
 const { J, detJ, invJ } = FepsElementCore.jacobian2D(dN, coords);
-// dN:    [[dN1/dξ, dN1/dη], ...] — 형상함수 자연좌표 미분
-// coords: [[x1,y1], [x2,y2], ...] — 절점 물리 좌표
-// 반환:
-//   J:    2×2 야코비안 행렬
+// dN:     [[dN1/dξ, dN1/dη], ...] — shape function natural-coordinate derivatives
+// coords: [[x1,y1], [x2,y2], ...]  — nodal physical coordinates
+// Returns:
+//   J:    2×2 Jacobian matrix
 //   detJ: det(J)
-//   invJ: 역행렬 J⁻¹
+//   invJ: inverse J⁻¹
 ```
 
-#### `bMatrix2D(dN_phys, n)` — 2D B 행렬 (변형률-변위)
+#### `bMatrix2D(dN_phys, n)` — 2D B Matrix (strain–displacement)
 
 ```javascript
 const B = FepsElementCore.bMatrix2D(dN_phys, n);
-// dN_phys: [[dNi/dx, dNi/dy], ...] — 물리좌표 미분
-// n: 절점 수
-// 반환: 3×(2n) 행렬 [ε_xx, ε_yy, γ_xy]ᵀ = B × d
+// dN_phys: [[dNi/dx, dNi/dy], ...] — physical-coordinate derivatives
+// n: number of nodes
+// Returns: 3×(2n) matrix such that [ε_xx, ε_yy, γ_xy]ᵀ = B × d
 ```
 
-#### `constitutive2D(E, nu, type)` — 구성방정식
+#### `constitutive2D(E, nu, type)` — Constitutive Matrix
 
 ```javascript
 const D = FepsElementCore.constitutive2D(E, nu, 'planeStress');
 // type: 'planeStress' | 'planeStrain'
-// 반환: 3×3 탄성 행렬 D
+// Returns: 3×3 elastic matrix D
 ```
 
-### 13.4 보 요소 유틸리티
+### 13.4 Beam Element Utilities
 
-#### `beamRotate2D(dx, dy, L, nNodes)` — 좌표 변환 행렬
+#### `beamRotate2D(dx, dy, L, nNodes)` — Coordinate Transformation Matrix
 
 ```javascript
 const T = FepsElementCore.beamRotate2D(dx, dy, L, nNodes);
-// dx, dy: 보 요소 축 방향 성분 (끝점 - 시작점)
-// L:      보 요소 길이
-// nNodes: 절점 수 (2 또는 3)
-// 반환: (3·nNodes) × (3·nNodes) 회전 변환 행렬 T
-//   전역→국소 변환: u_local = T × u_global
+// dx, dy: beam element axis direction components (end - start)
+// L:      beam element length
+// nNodes: number of nodes (2 or 3)
+// Returns: (3·nNodes) × (3·nNodes) rotation matrix T
+//   global→local transform: u_local = T × u_global
 ```
 
-### 13.5 행렬 유틸리티
+### 13.5 Matrix Utilities
 
-#### `matMul(A, B)` — 행렬 곱
+#### `matMul(A, B)` — Matrix Multiplication
 
 ```javascript
 const C = FepsElementCore.matMul(A, B);
 // A: m×k, B: k×n → C: m×n
 ```
 
-#### `matTranspose(A)` — 전치
+#### `matTranspose(A)` — Transpose
 
 ```javascript
 const At = FepsElementCore.matTranspose(A);
 ```
 
-#### `matScale(A, s)` — 스칼라 곱
+#### `matScale(A, s)` — Scalar Multiplication
 
 ```javascript
 const B = FepsElementCore.matScale(A, 2.0);
 ```
 
-### 13.6 정적 축소 유틸리티
+### 13.6 Static Condensation Utilities
 
-요소 디스크립터의 `condense` 필드를 사용하면 자동으로 적용되지만, 고급 사용자를 위해 수동 API도 제공됩니다.
+Applied automatically via the `condense` descriptor field, but manual APIs are also provided for advanced users.
 
-#### `staticCondense(K, f, internalDofs)` — 정적 축소
+#### `staticCondense(K, f, internalDofs)` — Static Condensation
 
 ```javascript
 const result = FepsElementCore.staticCondense(K, f, internalDofs);
-// K:  n×n 강성행렬 (2D jagged array)
-// f:  n-벡터 (하중 벡터)
-// internalDofs: 축소할 DOF 인덱스 배열 (0-based)
+// K:            n×n stiffness matrix (2D jagged array)
+// f:            n-vector (load vector)
+// internalDofs: 0-based array of DOF indices to condense
 //
-// 반환:
-//   result.esm      — 축소된 (n-m)×(n-m) 강성행렬
-//   result.force     — 축소된 하중 벡터
-//   result.dofesm    — 축소된 DOF 수
-//   result.recovery  — { Kii_inv_Kie, Kii_inv_fi, extDofs, intDofs }
+// Returns:
+//   result.esm      — condensed (n-m)×(n-m) stiffness matrix
+//   result.force    — condensed load vector
+//   result.dofesm   — condensed DOF count
+//   result.recovery — { Kii_inv_Kie, Kii_inv_fi, extDofs, intDofs }
 ```
 
-#### `recoverInternalDofs(recovery, ue)` — 내부 변위 복원
+#### `recoverInternalDofs(recovery, ue)` — Internal Displacement Recovery
 
 ```javascript
 const uFull = FepsElementCore.recoverInternalDofs(recovery, ue);
-// recovery: staticCondense() 에서 반환된 recovery 객체
-// ue:       외부 DOF 변위 벡터
-// 반환:     전체 DOF 변위 벡터 (원래 DOF 순서)
+// recovery: recovery object returned by staticCondense()
+// ue:       external DOF displacement vector
+// Returns:  full DOF displacement vector (original DOF order)
 ```
 
-#### `solveSmall(A, b)` — 소규모 연립방정식 풀이
+#### `solveSmall(A, b)` — Small System of Equations Solver
 
 ```javascript
 const x = FepsElementCore.solveSmall(A, b);
-// A: n×n 행렬, b: n-벡터
-// 가우스 소거법 + 부분 피벗팅
+// A: n×n matrix, b: n-vector
+// Gaussian elimination with partial pivoting
 ```
 
-#### `subMatrix(A, rows, cols)` / `subVector(v, indices)` — 부분 추출
+#### `subMatrix(A, rows, cols)` / `subVector(v, indices)` — Submatrix Extraction
 
 ```javascript
-const Asub = FepsElementCore.subMatrix(A, [0,1], [2,3]);  // 2×2 부분행렬
-const vsub = FepsElementCore.subVector(v, [0,1]);          // 부분벡터
+const Asub = FepsElementCore.subMatrix(A, [0,1], [2,3]);  // 2×2 sub-matrix
+const vsub = FepsElementCore.subVector(v, [0,1]);          // sub-vector
 ```
 
-### 13.7 SRI 관련 유틸리티
+### 13.7 SRI Utilities
 
-#### `constitSplit(constitModel, E, nu)` — 구성 행렬 분해
+#### `constitSplit(constitModel, E, nu)` — Constitutive Matrix Decomposition
 
 ```javascript
 const { Dvol, Ddev } = FepsElementCore.constitSplit('planeStress', E, nu);
 // constitModel: 'planeStress' | 'planeStrain'
-// 반환:
-//   Dvol — 정수압(체적) 부분 구성 행렬 (3×3, Float64Array 배열)
-//   Ddev — 전단(왜곡) 부분 구성 행렬 (3×3, Float64Array 배열)
-//   (Dvol + Ddev == D 성립)
+// Returns:
+//   Dvol — hydrostatic (volumetric) part of constitutive matrix (3×3, Float64Array)
+//   Ddev — deviatoric (shear) part of constitutive matrix (3×3, Float64Array)
+//   (Dvol + Ddev == D holds exactly)
 ```
 
 | `constitModel` | Dvol | Ddev |
@@ -1477,36 +1472,36 @@ const { Dvol, Ddev } = FepsElementCore.constitSplit('planeStress', E, nu);
 | `planeStress` | E/(2(1-ν)) × [1 1 0; 1 1 0; 0 0 0] | G × [1 -1 0; -1 1 0; 0 0 1] |
 | `planeStrain` | λ × [1 1 0; 1 1 0; 0 0 0] | diag(2G, 2G, G) |
 
-#### `isoStiffnessSRI2D(...)` — 사각형 요소 SRI 강성
+#### `isoStiffnessSRI2D(...)` — Quadrilateral Element SRI Stiffness
 
 ```javascript
 const result = FepsElementCore.isoStiffnessSRI2D(
-    shapeN, shapeDN,   // 형상함수 / 형상함수 미분 (xi, eta) => { N, dN }
-    nNodes, nGauss,    // 절점 수, full 가우스 차수
-    xn, yn,            // 절점 x·y 좌표 배열
-    t,                 // 두께
+    shapeN, shapeDN,   // shape functions / derivatives (xi, eta) => { N, dN }
+    nNodes, nGauss,    // node count, full Gauss order
+    xn, yn,            // nodal x·y coordinate arrays
+    t,                 // thickness
     constitModel,      // 'planeStress' | 'planeStrain'
-    E, nu,             // 재료 상수
-    alpha, beta,       // 정수압·전단 반영 비율
-    nGaussRed          // 축소 가우스 차수 (null → nGauss-1 자동 결정)
+    E, nu,             // material constants
+    alpha, beta,       // hydrostatic · deviatoric weights
+    nGaussRed          // reduced Gauss order (null → auto: nGauss-1)
 );
-// 반환: { esm, force, dofesm }
+// Returns: { esm, force, dofesm }
 // esm = alpha·K_vol(Dvol, nGauss) + beta·K_dev(Ddev, nGaussRed)
 ```
 
-#### `isoStiffnessSRI_Tri(...)` — 삼각형 요소 SRI 강성
+#### `isoStiffnessSRI_Tri(...)` — Triangle Element SRI Stiffness
 
 ```javascript
 const result = FepsElementCore.isoStiffnessSRI_Tri(
     shapeN, shapeDN, nNodes, nGauss, xn, yn, t,
     constitModel, E, nu, alpha, beta, nGaussRed
 );
-// nGaussRed 자동 결정: nGauss >= 6 → 3, 그 외 → 1
+// nGaussRed auto-determined: nGauss >= 6 → 3, otherwise → 1
 ```
 
-> **직접 호출 필요성**: `sri: true` 디스크립터 필드를 사용하면 `_autoWireSolid2D()`가 자동으로 SRI 강성 함수를 호출합니다. 직접 호출은 완전히 맞춤형 강성 계산이 필요한 경우에만 사용합니다.
+> **When to call directly**: Using `sri: true` in the descriptor causes `_autoWireSolid2D()` to call the SRI stiffness function automatically. Direct calls are only needed for fully custom stiffness computations.
 
-### 13.8 완전한 고체 요소 예시 (QUAD4 재현)
+### 13.8 Complete Solid Element Example (QUAD4 Reproduction)
 
 ```javascript
 FepsElementRegistry.register({
@@ -1528,7 +1523,7 @@ FepsElementRegistry.register({
       const [xi, eta] = pts[g];
       const { dN } = FepsElementCore.shapeQuad4(xi, eta);
       const { detJ, invJ } = FepsElementCore.jacobian2D(dN, coords);
-      // 물리좌표 미분
+      // Physical-coordinate derivatives
       const dN_phys = dN.map(([dxi, deta]) => [
         invJ[0][0]*dxi + invJ[0][1]*deta,
         invJ[1][0]*dxi + invJ[1][1]*deta
@@ -1550,88 +1545,87 @@ FepsElementRegistry.register({
 
 ---
 
-## 부록 A: 파일 구조
+## Appendix A: File Structure
 
 ```
 FEPS-web/
-├── index.html                  — 메인 UI (툴바, 탭, 패널, 모달, 캔버스)
+├── index.html                  — Main UI (toolbar, tabs, panels, modals, canvas)
 ├── css/
-│   └── style.css               — 전체 스타일시트
+│   └── style.css               — Stylesheet
 ├── js/
-│   ├── parser.js               — .inp 파일 파서
-│   ├── solver.js               — 브라우저 내장 FEA 솔버
-│   ├── renderer.js             — Canvas 렌더러 (전처리 + 후처리)
-│   ├── mesher.js               — 자동 메시 생성기 (Earcut 기반, 레거시)
-│   ├── mesher2.js              — 개선 메시 생성기 (Delaunay 기반, 레거시)
-│   ├── tqmesh.js               — TQMesh WASM 모듈 (Emscripten 빌드, 바이너리 내장)
-│   ├── tqmesh-wrapper.js       — FepsTQMesh: TQMesh WASM 래퍼 (메시 생성 API)
-│   ├── main.js                 — 앱 컨트롤러 / 이벤트 연결
-│   ├── element-registry.js     — FepsElementRegistry: 커스텀 요소 등록 API
-│   ├── element-core.js         — FepsElementCore: 형상함수·야코비안·B행렬 유틸
-│   ├── element-editor-ui.js    — 요소 코드 에디터 UI 로직
-│   ├── element-debug.js        — FepsDebug: 해석 데이터 수집기 (K_e, 전역 K 등)
-│   ├── element-debug-ui.js     — FepsDebugUI: 행렬 뷰어 모달 UI
-│   ├── help-ui.js              — 사용자 설명서 뷰어 (marked.js + TOC 자동 생성)
-│   └── elements/               — 제공 예시 학생 요소
-│       ├── quad5.js            — QUAD5 (5절점 버블 사각형)
-│       ├── quad8.js            — QUAD8 (8절점 세렌디피티)
-│       ├── quad9.js            — QUAD9 (9절점 라그랑지)
-│       ├── trig6.js            — TRIG6 (6절점 삼각형)
-│       ├── bar2_3N.js          — BAR2_3N (3절점 봉)
-│       ├── TimBeam2D_2N.js     — TIMBEAM2D_2N (2절점 티모셴코)
-│       └── TimBeam2D_3N.js     — TIMBEAM2D_3N (3절점 티모셴코)
-├── examples/                   — 튜토리얼 예제 .inp 파일 모음
-│   ├── README.md               — 예제 설명 (이론해, 실험 방법)
-│   ├── ex01-truss-simple.inp   — 단순 2D 트러스 (BAR2)
-│   ├── ex02-cantilever-beam.inp — 외팔보 이론해 검증 (BEAM2D)
-│   ├── ex03-portal-frame.inp   — 포털 라멘 + 분포하중 (BEAM2D)
-│   ├── ex04-solid-plate-quad4.inp — 2D 고체 캔틸레버 플레이트 (QUAD4)
-│   ├── ex05-solid-plate-trig3.inp — 동일 형상 TRIG3 메시 비교
-│   ├── ex06-solid-plate-quad5.inp — QUAD5 버블 함수 캔틸레버
-│   └── ex07-solid-plate-quad9.inp — QUAD9 정적 축소 캔틸레버 (8절점)
-├── FEPS-SDD.md                 — 소프트웨어 설계 문서
-├── FEPS-UserManual.md          — 본 사용자 설명서
-└── FEPS-Csharp/                — C# 참조 구현 (Avalonia 데스크탑용)
-    └── Examples/               — C# 예제 입력 파일 모음
+│   ├── parser.js               — .inp file parser
+│   ├── solver.js               — Browser-based FEA solver
+│   ├── renderer.js             — Canvas renderer (pre + post)
+│   ├── mesher.js               — Legacy mesh generator (Earcut-based)
+│   ├── mesher2.js              — Legacy mesh generator (Delaunay-based)
+│   ├── tqmesh.js               — TQMesh WASM module (Emscripten build, binary embedded)
+│   ├── tqmesh-wrapper.js       — FepsTQMesh: TQMesh WASM wrapper API
+│   ├── main.js                 — App controller / event wiring
+│   ├── element-registry.js     — FepsElementRegistry: custom element registration API
+│   ├── element-core.js         — FepsElementCore: shape fn, Jacobian, B-matrix, SRI utils
+│   ├── element-editor-ui.js    — Element code editor UI logic
+│   ├── element-debug.js        — FepsDebug: K_e / global K collector
+│   ├── element-debug-ui.js     — FepsDebugUI: matrix viewer modal UI
+│   ├── help-ui.js              — Help viewer (opens help.html)
+│   └── elements/               — Provided sample student elements
+│       ├── quad5.js            — QUAD5 (5-node bubble quadrilateral)
+│       ├── quad8.js            — QUAD8 (8-node serendipity)
+│       ├── quad9.js            — QUAD9 (9-node Lagrange)
+│       ├── trig6.js            — TRIG6 (6-node triangle)
+│       ├── bar2_3N.js          — BAR2_3N (3-node bar)
+│       ├── TimBeam2D_2N.js     — TIMBEAM2D_2N (2-node Timoshenko)
+│       └── TimBeam2D_3N.js     — TIMBEAM2D_3N (3-node Timoshenko)
+├── examples/                   — Tutorial example .inp files
+│   ├── README.md               — Example descriptions (analytical solutions, experiments)
+│   ├── ex01-truss-simple.inp   — Simple 2D truss (BAR2)
+│   ├── ex02-cantilever-beam.inp — Cantilever beam analytical verification (BEAM2D)
+│   ├── ex03-portal-frame.inp   — Portal frame + distributed load (BEAM2D)
+│   ├── ex04-solid-plate-quad4.inp — 2D solid cantilever plate (QUAD4)
+│   ├── ex05-solid-plate-trig3.inp — Same geometry, TRIG3 mesh comparison
+│   ├── ex06-solid-plate-quad5.inp — QUAD5 bubble-function cantilever
+│   └── ex07-solid-plate-quad9.inp — QUAD9 static condensation cantilever (8-node)
+├── FEPS-SDD.md                 — Software Design Document
+├── FEPS-UserManual.md          — This user manual (English)
+├── FEPS-UserManual-Korean.md   — Korean user manual
+└── FEPS-Csharp/                — C# reference implementation (Avalonia desktop)
+    └── Examples/               — C# example input files
 ```
 
 ---
 
-## 부록 B: 개발 이력 (주요 변경 사항)
+## Appendix B: Development History (Major Changes)
 
-| 버전 | 내용 |
-|------|------|
-| 초기 | BAR2, BEAM2D, QUAD4, TRIG3 기본 해석 기능 |
-| +3D | BAR3D, BEAM3D 요소 추가, 3D 등각 투시 렌더링 |
-| +Mesh | Earcut 기반 자동 메시 생성, TRIG6/QUAD8 지원 |
-| +Diag | SFD/BMD/AFD 단면력 다이어그램 렌더러 추가 |
-| 부호 수정 | SFD/BMD/AFD 부호 규약 수정 — 절점력에서 단면력으로 올바른 변환 |
-| Contour | 보/트러스 전용 컬러 컨투어 (sxx=축력, syy=모멘트) 추가 |
-| UI 개선 | BC 심볼 크기 구조물에 비례 자동 조정, 반력 레이블 크기 및 겹침 해결 |
-| 레이블 수정 | 2D 모멘트 반력 레이블 `Rz → Mz` 수정 |
-| 폰트 조정 | 다이어그램·반력·하중·절점·요소 레이블 폰트 크기 최적화 |
-| 요소 플러그인 | FepsElementRegistry + FepsElementCore API 추가 — JavaScript로 커스텀 요소 작성 가능 |
-| 코드 에디터 | 브라우저 내장 요소 코드 에디터, localStorage 영구 저장, .js 파일 내보내기/불러오기 |
-| 학생 요소 | QUAD5/8/9, TRIG6, BAR2_3N, TIMBEAM2D_2N/3N 기본 제공 예시 요소 추가 |
-| 디버그 모드 | FepsDebug (K_e·전역K 수집) + FepsDebugUI (행렬 뷰어 모달) 추가 |
-| 전처리/후처리 확장 | TIMBEAM, BAR2_3N 요소 변형 형상, 컬러 컨투어, 단면력 다이어그램 지원 |
-| 재료·단면 Edit-in-Place | 재료/단면 목록에 ✎ 버튼 추가 — 값 수정 후 Update 클릭으로 in-place 업데이트. 기존에는 삭제 후 재추가해야 했던 불편 해소. |
-| 자동 스케일 잠금 | 재해석(재료 변경 후 Run Analysis) 시 변형 스케일 고정 — 실제 변위 변화가 시각적으로 정확히 반영됨. 2D 고체 모델의 특성 길이를 바운딩 박스 대각선으로 수정. |
-| 수동 스케일 입력 | Scale / Diagram Scale 슬라이더 옆에 숫자 직접 입력 필드 추가. 슬라이더 최댓값(1000/500) 초과 배율도 입력 가능. 양방향 동기화. |
-| 단면 A 툴팁 | 단면 `A` 입력 필드에 "2D 고체 요소(QUAD4, TRIG3)에서는 사용되지 않음" 툴팁 추가 |
-| 메시 구멍 수정 | mesher2.js 개선 — 중앙 구멍(hole)이 있는 2D 영역의 메시 생성 오류 수정, Delaunay 재삼각화 + 바운딩 박스 기반 필터링 |
-| TQMesh 엔진 | 2D 고체 메시 생성 엔진을 TQMesh(FloSewn, MIT) WASM으로 교체. Advancing-front 알고리즘 기반 삼각형·사각형 혼합 메시, Edge Length / Smooth 파라미터 지원, 구멍(hole) 포함 복잡 영역 안정적 처리. |
-| 주석 지원 | `.inp` 파일 파서에 `#` 주석 줄 지원 추가 — 빈 줄 및 `#`으로 시작하는 줄 자동 건너뛰기 |
-| 정적 축소 | FepsElementCore에 `staticCondense()`, `recoverInternalDofs()` 등 6개 함수 추가. FepsElementRegistry에 `condense` 필드 자동 래핑 기능 구현. QUAD9 요소에 적용 (9→8절점). 요소 디스크립터에 `condense:[인덱스]` 한 줄 추가로 자동 축소 지원. |
-| 예제 확장 | ex06 (QUAD5 캔틸레버), ex07 (QUAD9 정적 축소 캔틸레버) 예제 파일 추가 |
-| 기본 요소 템플릿 | 요소 편집기에 QUAD4(4절점 이중선형), TRIG3(3절점 CST), QUAD4-SRI(전단잠김 방지) 참조 템플릿 추가 |
-| 요소 목록 정렬 | 요소 편집기의 등록된 요소 목록을 템플릿 드롭다운 순서에 맞게 일관성 있게 정렬 |
-| SRI (선택적 축소 적분) | FepsElementCore에 `constitSplit()`, `isoStiffnessSRI2D()`, `isoStiffnessSRI_Tri()` 추가. FepsElementRegistry에 `sri` / `sriAlpha` / `sriBeta` / `gaussOrderReduced` 디스크립터 필드 지원. 요소 편집기 하단 SRI 패널(체크박스·α·β·축소차수·코드에적용) 추가. 전단잠김 현상이 있는 저차 요소의 정확도를 크게 향상시킴 (QUAD4 굽힘 정확도 ~38% → ~98%). |
-| 메시 품질 표시 | 자동 메시에서 삼각형 잔여 요소(orange), 내각 ≥150° 인 불량 사각형(red)을 화면에 강조 표시 |
-
----
+| Version | Change |
+|---------|--------|
+| Initial | BAR2, BEAM2D, QUAD4, TRIG3 basic analysis |
+| +3D | BAR3D, BEAM3D elements, 3D isometric rendering |
+| +Mesh | Earcut-based auto mesh generation, TRIG6/QUAD8 support |
+| +Diagrams | SFD/BMD/AFD section force diagram renderer |
+| Sign fix | SFD/BMD/AFD sign convention corrected |
+| Contour | Beam/truss color contour (sxx=axial, syy=moment) |
+| UI improvements | BC symbol size auto-scaled; reaction label overlap resolved |
+| Label fix | 2D moment reaction label corrected `Rz → Mz` |
+| Font adjustment | Optimized font sizes for diagrams, reactions, loads, nodes, element labels |
+| Element plug-in | FepsElementRegistry + FepsElementCore API — custom elements in JavaScript |
+| Code editor | Built-in element code editor, localStorage persistence, .js export/import |
+| Sample elements | QUAD5/8/9, TRIG6, BAR2_3N, TIMBEAM2D_2N/3N provided as sample elements |
+| Debug mode | FepsDebug (K_e · global K collection) + FepsDebugUI (matrix viewer modal) |
+| Pre/post extension | TIMBEAM, BAR2_3N deformed shape, color contour, section force diagram support |
+| Edit-in-place | ✎ button on material/section lists — update values in-place |
+| Auto-scale lock | Re-analysis locks deformation scale; 2D solid characteristic length fixed to bounding-box diagonal |
+| Manual scale input | Numeric input field beside Scale / Diagram Scale sliders; supports values beyond slider max; bidirectional sync |
+| Section A tooltip | Tooltip added: "Not used by 2D solid elements (QUAD4, TRIG3)" |
+| Mesh hole fix | mesher2.js improved — fixed mesh errors for domains with interior holes |
+| Comment support | `#` comment line support added to `.inp` parser |
+| Static condensation | `staticCondense()`, `recoverInternalDofs()` etc. added to FepsElementCore; `condense` descriptor field auto-wrapping in FepsElementRegistry; applied to QUAD9 (9→8 nodes) |
+| Example expansion | ex06 (QUAD5 cantilever), ex07 (QUAD9 static condensation cantilever) added |
+| Basic element templates | QUAD4, TRIG3, QUAD4-SRI reference templates added to element editor |
+| Element list sorting | Registered element list sorted to match template dropdown order |
+| SRI | `constitSplit()`, `isoStiffnessSRI2D()`, `isoStiffnessSRI_Tri()` added to FepsElementCore; `sri`/`sriAlpha`/`sriBeta`/`gaussOrderReduced` descriptor fields; SRI panel in element editor; QUAD4 bending accuracy ~38% → ~98% |
+| Mesh quality display | Triangular leftover elements (orange) and bad quads ≥ 150° interior angle (red) highlighted on canvas |
+| TQMesh engine | 2D solid mesh engine replaced with TQMesh (FloSewn, MIT) WASM — advancing-front, tri/quad mixed mesh, Edge Length / Smooth parameters, hole support |
 
 ---
 
-*FEPS-web v0.1 — 교육 및 연구 목적의 유한요소해석 프로그램*
-*개발: 권민호 · 경상국립대학교 토목공학과 · kwonm@gnu.ac.kr*
+*FEPS-web v0.1 — Finite element analysis program for education and research*
+*Developer: Minho Kwon · Dept. of Civil Engineering, Gyeongsang National University · kwonm@gnu.ac.kr*

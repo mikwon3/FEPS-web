@@ -37,7 +37,8 @@
       "Bash(rm -f tqmesh.js)",
       "Bash(pandoc FEPS-UserManual.md --from markdown+tex_math_dollars --to html5 --mathjax --no-highlight -o FEPS-UserManual.html)",
       "Bash(pandoc FEPS-UserManual.md --from markdown+tex_math_dollars --to html5 --mathjax --syntax-highlighting=none -o FEPS-UserManual.html)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(gh --version)"
     ]
   }
 }

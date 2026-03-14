@@ -1,17 +1,223 @@
 # FEPS — Finite Element Program for General Structure
 
-> **브라우저 기반 2D 유한요소해석 프로그램** | Browser-based 2D Finite Element Analysis
+> Browser-based 2D Finite Element Analysis | 브라우저 기반 2D 유한요소해석 프로그램
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Browser-green.svg)]()
 [![Language](https://img.shields.io/badge/Language-Vanilla%20JS-yellow.svg)]()
 
-**FEPS**는 설치 없이 브라우저에서 바로 실행되는 교육용 유한요소해석(FEA) 프로그램입니다.
-2D 평면 고체 해석(Solid), 2D/3D 보·트러스 구조 해석을 지원하며, 학생이 직접 JavaScript로 새로운 유한요소를 작성하고 즉시 해석에 활용할 수 있는 **요소 코드 에디터**를 내장하고 있습니다.
+---
+
+## English
+
+**FEPS** is a browser-based educational finite element analysis (FEA) program that runs without any installation.
+It supports 2D plane solid analysis and 2D/3D beam/truss structural analysis, and features a built-in **Element Code Editor** that allows students to write custom finite elements in JavaScript and use them immediately in analysis.
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Zero installation** | Open `index.html` in a browser or deploy to any web server |
+| **Linear static analysis** | LU decomposition direct solver; self-weight, distributed, and thermal loads |
+| **2D auto mesh generation** | TQMesh (WASM) — advancing-front tri/quad mixed mesh, hole support |
+| **Element Code Editor** | Write new elements in JavaScript, register instantly, saved to localStorage |
+| **SRI (shear locking cure)** | Selective Reduced Integration — eliminates shear locking in low-order elements |
+| **Static condensation** | Auto-eliminates internal DOFs (e.g. QUAD9 center node) |
+| **Post-processing** | Deformed shape, stress contour (von Mises etc.), BMD/SFD/AFD diagrams |
+| **Debug viewer** | Inspect element stiffness K_e, nodal displacement u_e, nodal force f_e, global K |
+| **Pure Vanilla JS** | No framework, no build step, no external runtime dependencies |
+
+### Supported Elements
+
+#### Built-in elements
+
+| Element | Type | Description |
+|---------|------|-------------|
+| `BAR2` | 2D truss | 2-node bar element (axial force only) |
+| `BAR3D` | 3D truss | 2-node 3D bar element |
+| `BEAM2D` | 2D frame | 2-node Euler-Bernoulli beam (distributed load supported) |
+| `BEAM3D` | 3D frame | 2-node 3D beam (torsion included, 6 DOF/node) |
+| `TRIG3` | 2D solid | 3-node linear triangle (CST) |
+| `QUAD4` | 2D solid | 4-node bilinear quadrilateral |
+
+#### Sample plug-in elements (auto-loaded)
+
+| Element | Description |
+|---------|-------------|
+| `QUAD5` | 5-node bubble-function-enhanced quadrilateral |
+| `QUAD8` | 8-node serendipity quadrilateral (quadratic) |
+| `QUAD9` | 9-node Lagrange quad → works as 8-node via static condensation |
+| `TRIG6` | 6-node quadratic triangle |
+| `BAR2_3N` | 3-node quadratic 2D bar |
+| `TIMBEAM2D_2N` | 2-node Timoshenko beam (shear deformation included) |
+| `TIMBEAM2D_3N` | 3-node Timoshenko beam (quadratic) |
+
+### Quick Start
+
+#### Run locally (web server required)
+
+```bash
+# Python 3
+python3 -m http.server 8000
+
+# Node.js
+npx serve .
+```
+
+Open `http://localhost:8000` in your browser, then click **Open** to load an example file.
+
+> Opening via `file://` protocol will block WASM loading and CORS-restricted features (mesh generation, help viewer). A local web server is required.
+
+#### Deploy on GitHub Pages
+
+Go to repository **Settings → Pages → Source**, set branch `main` / root, and save.
+
+### Example Files (`examples/`)
+
+| File | Element | Description |
+|------|---------|-------------|
+| `ex01-truss-simple.inp` | BAR2 | Simple 2D truss, analytical solution check |
+| `ex02-cantilever-beam.inp` | BEAM2D | Cantilever beam tip deflection vs theory |
+| `ex03-portal-frame.inp` | BEAM2D | 2-storey portal frame + distributed load |
+| `ex04-solid-plate-quad4.inp` | QUAD4 | 2D solid cantilever plate |
+| `ex05-solid-plate-trig3.inp` | TRIG3 | Same geometry as ex04, TRIG3 mesh comparison |
+| `ex06-solid-plate-quad5.inp` | QUAD5 | Bubble-function element, bending convergence |
+| `ex07-solid-plate-quad9.inp` | QUAD9 | Static condensation; 99.95% of analytical solution |
+
+### Element Code Editor
+
+Students can implement their own finite elements in JavaScript and use them in analysis immediately.
+
+```javascript
+FepsElementRegistry.register({
+  name    : 'MY_QUAD4',    // Unique element name (uppercase recommended)
+  category: 'solid2d',     // 'solid2d' | 'bar1d' | 'beam2d_tim'
+  nNodes  : 4,
+  dofNode : 2,
+  gaussOrder  : 2,
+  constitModel: 'planeStress',
+
+  // SRI — optional, eliminates shear locking
+  sri               : true,
+  sriAlpha          : 1.0,   // hydrostatic part weight (full integration)
+  sriBeta           : 1.0,   // deviatoric part weight (reduced integration)
+  gaussOrderReduced : 1,
+
+  // Static condensation — optional, auto-removes internal DOFs
+  condense: [8],
+
+  shapeN(xi, eta)  { /* shape functions */ },
+  shapeDN(xi, eta) { /* shape function derivatives */ },
+});
+```
+
+- Select a reference template (QUAD4, TRIG3, QUAD4-SRI, QUAD5, QUAD9, …) from the dropdown
+- Registered elements are saved to localStorage and restored on page reload
+- Export / import as `.js` files
+- Use **Debug mode** to numerically verify the stiffness matrix K_e
+
+### Input File Format (`.inp` overview)
+
+```
+# nNodes  dofPerNode  dim
+4  2  2
+# nodeID  x  y
+1  0.0  0.0
+2  1.0  0.0
+3  1.0  1.0
+4  0.0  1.0
+# nMaterials
+1
+# matID  E         nu
+1  200000.0  0.3
+# nProperties
+1
+# propID  A    t
+1  1.0  0.1
+# nElements
+1
+# TYPE   elemID  matID  propID  n1 n2 n3 n4
+QUAD4   1       1      1       1  2  3  4
+# nBC
+2
+# nodeID  ux uy  Fx Fy
+1  1 1  0 0
+2  1 0  0 -10
+```
+
+See [User Manual (English)](FEPS-UserManual.md) §4 for the full format specification.
+
+### File Structure
+
+```
+FEPS-web/
+├── index.html                  — Main UI
+├── css/style.css               — Stylesheet
+├── js/
+│   ├── parser.js               — .inp file parser
+│   ├── solver.js               — FEA solver (LU decomposition)
+│   ├── renderer.js             — Canvas renderer (pre + post)
+│   ├── main.js                 — Application controller
+│   ├── element-registry.js     — FepsElementRegistry API
+│   ├── element-core.js         — FepsElementCore utils (shape fn, integration, SRI)
+│   ├── element-editor-ui.js    — Element code editor UI
+│   ├── element-debug.js        — K_e / global K collector
+│   ├── element-debug-ui.js     — Matrix viewer modal
+│   ├── tqmesh.js               — TQMesh WASM module (mesh engine)
+│   ├── tqmesh-wrapper.js       — FepsTQMesh wrapper API
+│   ├── mesher.js / mesher2.js  — Legacy mesh generators
+│   └── elements/               — Sample student elements
+│       ├── quad5.js / quad8.js / quad9.js
+│       ├── trig6.js
+│       ├── bar2_3N.js
+│       └── TimBeam2D_2N.js / TimBeam2D_3N.js
+├── examples/                   — Tutorial .inp files (ex01–ex07)
+├── FEPS-UserManual.md          — User manual in English (Markdown)
+├── FEPS-UserManual-Korean.md   — User manual in Korean (Markdown)
+└── FEPS-UserManual.html        — User manual (HTML fragment, in-app help)
+```
+
+### Technology Stack
+
+| Component | Technology |
+|-----------|-----------|
+| UI / Rendering | HTML5 Canvas 2D API |
+| Analysis engine | Vanilla JavaScript (synchronous, main thread) |
+| Mesh generation | [TQMesh](https://github.com/FloSewn/TQMesh) (C++ → Emscripten WASM) |
+| Dependencies | **None** |
+| I/O format | `.inp` plain-text file |
+
+### Third-party Libraries
+
+| Library | Purpose | License |
+|---------|---------|---------|
+| [TQMesh](https://github.com/FloSewn/TQMesh) (Florian Sewn) | 2D automatic mesh generation engine (WASM build) | MIT |
+
+### Documentation
+
+- **[User Manual (English)](FEPS-UserManual.md)** — Full feature reference, API documentation, example walkthroughs
+- **[사용자 설명서 (한국어)](FEPS-UserManual-Korean.md)** — Korean edition of the user manual
+- Click the **Help** button inside the app to open the interactive help viewer
+
+### Developer
+
+**Minho Kwon** (권민호)
+Dept. of Civil Engineering, Gyeongsang National University
+kwonm@gnu.ac.kr
+
+### License
+
+This project is released under the **MIT License**.
+Bundled third-party libraries (TQMesh) are subject to their own respective licenses.
 
 ---
 
-## 주요 특징
+## 한국어
+
+**FEPS**는 설치 없이 브라우저에서 바로 실행되는 교육용 유한요소해석(FEA) 프로그램입니다.
+2D 평면 고체 해석(Solid), 2D/3D 보·트러스 구조 해석을 지원하며, 학생이 직접 JavaScript로 새로운 유한요소를 작성하고 즉시 해석에 활용할 수 있는 **요소 코드 에디터**를 내장하고 있습니다.
+
+### 주요 특징
 
 | 기능 | 설명 |
 |------|------|
@@ -25,11 +231,9 @@
 | **디버그 뷰어** | 요소 강성행렬 K_e, 절점변위 u_e, 절점력 f_e, 전체 K 행렬 확인 |
 | **순수 Vanilla JS** | 외부 의존 없음, 프레임워크 불필요 |
 
----
+### 지원 요소
 
-## 지원 요소
-
-### 기본 내장 요소
+#### 기본 내장 요소
 
 | 요소 | 종류 | 설명 |
 |------|------|------|
@@ -40,7 +244,7 @@
 | `TRIG3` | 2D 고체 | 3절점 일차 삼각형 (CST) |
 | `QUAD4` | 2D 고체 | 4절점 이중선형 사각형 |
 
-### 플러그인 샘플 요소 (자동 로드)
+#### 플러그인 샘플 요소 (자동 로드)
 
 | 요소 | 설명 |
 |------|------|
@@ -52,11 +256,9 @@
 | `TIMBEAM2D_2N` | 2절점 티모셴코 보 (전단변형 포함) |
 | `TIMBEAM2D_3N` | 3절점 티모셴코 보 (이차) |
 
----
+### 빠른 시작
 
-## 빠른 시작
-
-### 로컬에서 실행 (웹 서버 필요)
+#### 로컬에서 실행 (웹 서버 필요)
 
 ```bash
 # Python 3
@@ -70,13 +272,11 @@ npx serve .
 
 > `file://` 프로토콜로 직접 열면 WASM 로딩 및 CORS 제약으로 일부 기능(메시 생성, 도움말)이 작동하지 않습니다.
 
-### GitHub Pages로 배포
+#### GitHub Pages로 배포
 
-저장소 Settings → Pages → Source: `main` 브랜치 루트로 설정하면 됩니다.
+저장소 **Settings → Pages → Source**: `main` 브랜치 루트로 설정하면 됩니다.
 
----
-
-## 예제 파일 (`examples/`)
+### 예제 파일 (`examples/`)
 
 | 파일 | 요소 | 설명 |
 |------|------|------|
@@ -88,9 +288,7 @@ npx serve .
 | `ex06-solid-plate-quad5.inp` | QUAD5 | 버블 함수 보강 — 굽힘 수렴 성능 |
 | `ex07-solid-plate-quad9.inp` | QUAD9 | 정적 축소 적용, 이론해의 99.95% |
 
----
-
-## 요소 코드 에디터
+### 요소 코드 에디터
 
 학생이 JavaScript로 직접 유한요소를 구현하고 즉시 해석에 사용할 수 있는 교육 기능입니다.
 
@@ -122,9 +320,38 @@ FepsElementRegistry.register({
 - `.js` 파일 내보내기 / 불러오기 지원
 - **디버그 모드**로 강성행렬 K_e 수치 검증 가능
 
----
+### 입력 파일 형식 (`.inp` 개요)
 
-## 파일 구조
+```
+# 절점 수  DOF/절점  차원
+4  2  2
+# 절점 ID  x  y
+1  0.0  0.0
+2  1.0  0.0
+3  1.0  1.0
+4  0.0  1.0
+# 재료 수
+1
+# ID  E         nu
+1  200000.0  0.3
+# 단면 수
+1
+# ID  A    t
+1  1.0  0.1
+# 요소 수
+1
+# TYPE   ID  matID  propID  n1 n2 n3 n4
+QUAD4   1   1      1       1  2  3  4
+# 경계조건 수
+2
+# 절점ID  ux uy  Fx Fy
+1  1 1  0 0
+2  1 0  0 -10
+```
+
+자세한 형식은 [사용자 설명서 (한국어)](FEPS-UserManual-Korean.md)의 §4를 참조하세요.
+
+### 파일 구조
 
 ```
 FEPS-web/
@@ -149,13 +376,12 @@ FEPS-web/
 │       ├── bar2_3N.js
 │       └── TimBeam2D_2N.js / TimBeam2D_3N.js
 ├── examples/                   — 튜토리얼 .inp 파일 (ex01–ex07)
-├── FEPS-UserManual.md          — 사용자 설명서 (Markdown)
+├── FEPS-UserManual.md          — 사용자 설명서 영문판 (Markdown)
+├── FEPS-UserManual-Korean.md   — 사용자 설명서 한국어판 (Markdown)
 └── FEPS-UserManual.html        — 사용자 설명서 (HTML, 내장 도움말용)
 ```
 
----
-
-## 기술 스택
+### 기술 스택
 
 | 구성 | 기술 |
 |------|------|
@@ -165,65 +391,25 @@ FEPS-web/
 | 의존 라이브러리 | **없음** |
 | 입출력 | `.inp` 텍스트 파일 |
 
----
-
-## 입력 파일 형식 (`.inp` 개요)
-
-```
-# 절점 수  DOF/절점  차원
-4  2  2
-# 절점 ID  x  y
-1  0.0  0.0
-2  1.0  0.0
-3  1.0  1.0
-4  0.0  1.0
-# 재료 수
-1
-# ID  E        nu
-1  200000.0  0.3
-# 단면 수
-1
-# ID  A   t
-1  1.0  0.1
-# 요소 수
-1
-# TYPE  ID  matID  propID  n1 n2 n3 n4
-QUAD4   1   1      1       1  2  3  4
-# 경계조건 수
-2
-# 절점ID  ux uy  Fx Fy
-1  1 1  0 0
-2  1 0  0 -10
-```
-
-자세한 형식은 [사용자 설명서](FEPS-UserManual.md)의 §4를 참조하세요.
-
----
-
-## 외부 라이브러리 출처
+### 외부 라이브러리
 
 | 라이브러리 | 용도 | 라이선스 |
 |-----------|------|---------|
 | [TQMesh](https://github.com/FloSewn/TQMesh) (Florian Sewn) | 2D 자동 메시 생성 엔진 (WASM 빌드) | MIT |
 
----
+### 문서
 
-## 문서
-
-- **[사용자 설명서 (한국어)](FEPS-UserManual.md)** — 전체 기능 설명, API 레퍼런스, 예제 해설
+- **[사용자 설명서 (한국어)](FEPS-UserManual-Korean.md)** — 전체 기능 설명, API 레퍼런스, 예제 해설
+- **[User Manual (English)](FEPS-UserManual.md)** — English edition of the user manual
 - 프로그램 내 **Help** 버튼으로 인터랙티브 도움말 뷰어 열기 가능
 
----
-
-## 개발자
+### 개발자
 
 **권민호** (Minho Kwon)
 경상국립대학교 토목공학과
 kwonm@gnu.ac.kr
 
----
-
-## 라이선스
+### 라이선스
 
 이 프로젝트는 **MIT License** 하에 배포됩니다.
-단, 포함된 외부 라이브러리(TQMesh)도 각각의 라이선스를 따릅니다.
+포함된 외부 라이브러리(TQMesh)도 각각의 라이선스를 따릅니다.
