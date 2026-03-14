@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test TQMesh</title>
+</head>
+
+<body>
+    <h3>TQMesh WASM Test</h3>
+    <pre id="log"
+        style="font-family:monospace;font-size:13px;line-height:1.6;background:#f4f4f4;padding:12px;border-radius:6px;"></pre>
+    <div id="result" style="font-size:16px;font-weight:bold;margin-top:12px;"></div>
+
+    <script src="js/tqmesh.js"></script>
+    <script src="js/tqmesh-wrapper.js"></script>
+    <script>
+        function log(msg) {
+            document.getElementById('log').textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        async function test() {
+            const resultDiv = document.getElementById('result');
+
+            try {
+                // ── 1. WASM Init (first call triggers ensureLoaded) ──
+                log('=== TQMesh WASM Performance Test ===\n');
+                const t0 = performance.now();
+                const poly = [
+                    { x: 123.4567, y: 321.9876 },
+                    { x: 345.6789, y: 321.9876 },
+                    { x: 345.6789, y: 567.8912 },
+                    { x: 123.4567, y: 567.8912 }
+                ];
+                const res = await FepsTQMesh.generateMesh(poly, 'QUAD4', 20, 3, []);
+                const tFirst = (performance.now() - t0).toFixed(1);
+                log('1) First call (init + mesh):  ' + tFirst + ' ms');
+                log('   → ' + res.nodes.length + ' nodes, ' + res.elements.length + ' elements');
+
+                // ── 2. Second call (WASM already cached) ──
+                const t1 = performance.now();
+                const res2 = await FepsTQMesh.generateMesh(poly, 'TRIG3', 15, 3, []);
+                const tSecond = (performance.now() - t1).toFixed(1);
+                log('2) Second call (cached):      ' + tSecond + ' ms');
+                log('   → ' + res2.nodes.length + ' nodes, ' + res2.elements.length + ' elements');
+
+                // ── 3. Larger mesh ──
+                const bigPoly = [
+                    { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }
+                ];
+                const t2 = performance.now();
+                const res3 = await FepsTQMesh.generateMesh(bigPoly, 'TRIG3', 3, 5, []);
+                const tLarge = (performance.now() - t2).toFixed(1);
+                log('3) Large mesh (100×100, h=3): ' + tLarge + ' ms');
+                log('   → ' + res3.nodes.length + ' nodes, ' + res3.elements.length + ' elements');
+
+                // ── 4. Node coordinate validation ──
+                let maxDiff = 0;
+                for (let i = 0; i < 4; i++) {
+                    let minDiff = 1e9;
+                    for (let j = 0; j < res.nodes.length; j++) {
+                        let diff = Math.max(
+                            Math.abs(poly[i].x - res.nodes[j].x),
+                            Math.abs(poly[i].y - res.nodes[j].y)
+                        );
+                        if (diff < minDiff) minDiff = diff;
+                    }
+                    maxDiff = Math.max(maxDiff, minDiff);
+                }
+                log('\n4) Corner node match:  max diff = ' + maxDiff.toExponential(3));
+
+                resultDiv.style.color = 'green';
+                resultDiv.textContent = '✓ All tests passed!  First-call: ' + tFirst + 'ms, Cached: ' + tSecond + 'ms';
+
+            } catch (e) {
+                console.error(e);
+                log('\n✗ ERROR: ' + e.message);
+                resultDiv.style.color = 'red';
+                resultDiv.textContent = '✗ Error: ' + e.message;
+            }
+        }
+        test();
+    </script>
+</body>
+
+</html>

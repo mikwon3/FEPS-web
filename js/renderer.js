@@ -700,6 +700,50 @@ const FepsRenderer = (() => {
             !['bmd', 'sfd', 'axial', 'sfd_z', 'bmd_y', 'torsion'].includes(_opts.resultType);
         const compIdx = isStressContour ? { sxx: 0, syy: 1, txy: 2, smax: 3, smin: 4, mises: 5 }[_opts.resultType] : undefined;
 
+        // ── Mesh quality highlighting (quad meshes only) ──
+        //    _leftover TRIG3/TRIG6 in quad mesh → yellow
+        //    Any element with interior angle > 120° → red
+        //    Red overrides yellow (worse quality).
+
+        /**
+         * Compute max interior angle (degrees) of a 2D element.
+         * Handles both CW and CCW winding correctly.
+         */
+        function _maxInteriorAngle(pts, n) {
+            // Signed area → winding direction
+            let sa = 0;
+            for (let j = 0; j < n; j++) {
+                const p1 = pts[j], p2 = pts[(j + 1) % n];
+                sa += p1.x * p2.y - p2.x * p1.y;
+            }
+            const ccw = sa > 0;
+            let maxA = 0;
+            for (let j = 0; j < n; j++) {
+                const prev = pts[(j - 1 + n) % n];
+                const curr = pts[j];
+                const next = pts[(j + 1) % n];
+                const e1x = prev.x - curr.x, e1y = prev.y - curr.y;
+                const e2x = next.x - curr.x, e2y = next.y - curr.y;
+                const cross = e1x * e2y - e1y * e2x;
+                const dot   = e1x * e2x + e1y * e2y;
+                let a = Math.atan2(Math.abs(cross), dot);           // [0, π]
+                if ((ccw && cross > 0) || (!ccw && cross < 0)) {
+                    a = 2 * Math.PI - a;                            // reflex
+                }
+                if (a > maxA) maxA = a;
+            }
+            return maxA * (180 / Math.PI);
+        }
+
+        // Pre-check: does the model contain quad elements?
+        // Uses _solidCorners() so QUAD5/QUAD9 and registry elements are included.
+        let _modelHasQuads = false;
+        if (!ghost) {
+            for (const eid of eids) {
+                if (_solidCorners(_model.elements[eid].type) === 4) { _modelHasQuads = true; break; }
+            }
+        }
+
         // ── PASS 1: Fill all 2D elements (contour or material color) ──
         if (!ghost) {
             for (const eid of eids) {
@@ -713,13 +757,41 @@ const FepsRenderer = (() => {
                 const pts = [];
                 for (let j = 0; j < corners; j++) pts.push(nodePos(e.nodes[j], deformed));
 
+                // Quality border cache (quad meshes only)
+                const isQuadElem = _solidCorners(typ) === 4;
+                // _leftover 플래그 우선, 없으면 타입 기반 폴백:
+                // 모델에 quad가 있고 현재 요소가 삼각형이면 leftover로 간주
+                const isLeftover = !!e._leftover || (_modelHasQuads && _solidCorners(typ) === 3);
+                if (_modelHasQuads && (isQuadElem || isLeftover)) {
+                    const maxAng = _maxInteriorAngle(pts, corners);
+                    // 내각 150° 이상이면 불량 요소로 판정
+                    e._qBadAngle = maxAng >= 150;
+                }
+
+                // 품질 fill: 뒤틀린 요소(red) vs leftover 삼각형(orange) 색상 구분
+                if (_modelHasQuads && !ghost) {
+                    let qualFill = null;
+                    if (e._qBadAngle) {
+                        qualFill = 'rgba(211, 0, 0, 0.25)';       // 뒤틀린 요소 — 빨간
+                    } else if (isLeftover) {
+                        qualFill = 'rgba(245, 127, 23, 0.30)';    // leftover 삼각형 — 주황
+                    }
+                    if (qualFill) {
+                        ctx.beginPath();
+                        ctx.moveTo(pts[0].x, pts[0].y);
+                        for (let j = 1; j < corners; j++) ctx.lineTo(pts[j].x, pts[j].y);
+                        ctx.closePath();
+                        ctx.fillStyle = qualFill;
+                        ctx.fill();
+                    }
+                }
+
                 if (_opts.colorByMaterial) {
-                    const mi = (e.mat - 1) % MAT_COLORS.length;
                     ctx.beginPath();
                     ctx.moveTo(pts[0].x, pts[0].y);
                     for (let j = 1; j < corners; j++) ctx.lineTo(pts[j].x, pts[j].y);
                     ctx.closePath();
-                    ctx.fillStyle = MAT_COLORS[mi];
+                    ctx.fillStyle = MAT_COLORS[(e.mat - 1) % MAT_COLORS.length];
                     ctx.fill();
                 } else if (isStressContour && compIdx !== undefined && _results.nodeStress) {
                     drawGouraudPoly(pts, e.nodes, compIdx, corners);
@@ -872,8 +944,17 @@ const FepsRenderer = (() => {
                     ctx.stroke();
                     ctx.setLineDash([]);
                 } else {
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 1.2;
+                    // Quality border: 불량 내각(≥150°) → red, leftover 삼각형 → 주황
+                    if (e._qBadAngle) {
+                        ctx.strokeStyle = '#D50000';    // red
+                        ctx.lineWidth = 2.0;
+                    } else if (e._leftover || (_modelHasQuads && _solidCorners(typ) === 3)) {
+                        ctx.strokeStyle = '#F57F17';    // 주황 — leftover 삼각형
+                        ctx.lineWidth = 2.0;
+                    } else {
+                        ctx.strokeStyle = '#333';
+                        ctx.lineWidth = 1.2;
+                    }
                     ctx.stroke();
                 }
             }

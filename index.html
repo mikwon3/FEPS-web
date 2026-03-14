@@ -64,16 +64,22 @@
       <button id="btn-open-output" class="tb-btn" title="Open analysis output report" disabled>
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
           <rect x="3" y="2" width="10" height="13" rx="1" />
-          <line x1="6" y1="6" x2="11" y2="6" /><line x1="6" y1="9" x2="11" y2="9" /><line x1="6" y1="12" x2="9" y2="12" />
+          <line x1="6" y1="6" x2="11" y2="6" />
+          <line x1="6" y1="9" x2="11" y2="9" />
+          <line x1="6" y1="12" x2="9" y2="12" />
         </svg>
         Output
       </button>
-      <button id="btn-report" class="tb-btn" title="Generate HTML report with full tables (nodes, elements, materials, sections, results)">
+      <button id="btn-report" class="tb-btn"
+        title="Generate HTML report with full tables (nodes, elements, materials, sections, results)">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
           <rect x="2" y="1" width="9" height="12" rx="1" />
-          <line x1="4" y1="4.5" x2="9" y2="4.5" /><line x1="4" y1="7" x2="9" y2="7" /><line x1="4" y1="9.5" x2="7" y2="9.5" />
+          <line x1="4" y1="4.5" x2="9" y2="4.5" />
+          <line x1="4" y1="7" x2="9" y2="7" />
+          <line x1="4" y1="9.5" x2="7" y2="9.5" />
           <circle cx="12" cy="12" r="3.5" fill="#2563eb" stroke="none" />
-          <text x="9.7" y="14.3" font-size="5" fill="white" font-weight="bold" stroke="none" font-family="sans-serif">H</text>
+          <text x="9.7" y="14.3" font-size="5" fill="white" font-weight="bold" stroke="none"
+            font-family="sans-serif">H</text>
         </svg>
         Report
       </button>
@@ -104,19 +110,20 @@
       <div class="tb-sep"></div>
       <button id="btn-elem-editor" class="tb-btn" title="요소 코드 에디터 — 커스텀 요소를 직접 작성·등록합니다">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
-          <rect x="2" y="3" width="12" height="10" rx="1"/>
-          <path d="M5 7l-2 2 2 2M11 7l2 2-2 2M8 5l-1 6" stroke-linecap="round"/>
+          <rect x="2" y="3" width="12" height="10" rx="1" />
+          <path d="M5 7l-2 2 2 2M11 7l2 2-2 2M8 5l-1 6" stroke-linecap="round" />
         </svg>
         요소 편집기
       </button>
       <div class="tb-sep"></div>
       <button id="btn-debug" class="tb-btn" title="디버그 모드 활성화 — 해석 후 강성행렬·절점력 뷰어를 엽니다">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
-          <circle cx="8" cy="8" r="5"/>
-          <line x1="8" y1="5" x2="8" y2="8.5"/>
-          <circle cx="8" cy="11" r=".8" fill="currentColor" stroke="none"/>
+          <circle cx="8" cy="8" r="5" />
+          <line x1="8" y1="5" x2="8" y2="8.5" />
+          <circle cx="8" cy="11" r=".8" fill="currentColor" stroke="none" />
         </svg>
-        디버그<span id="dbg-status" style="font-size:9px;font-weight:700;letter-spacing:.5px;margin-left:2px;color:var(--accent-text,#60a5fa)"></span>
+        디버그<span id="dbg-status"
+          style="font-size:9px;font-weight:700;letter-spacing:.5px;margin-left:2px;color:var(--accent-text,#60a5fa)"></span>
       </button>
       <button id="btn-debug-viewer" class="tb-btn" title="디버그 뷰어 수동 열기 (해석 완료 후)">
         행렬 보기
@@ -124,9 +131,9 @@
       <div class="tb-sep"></div>
       <button id="btn-help" class="tb-btn" title="사용자 설명서 열기 (FEPS-UserManual.md)">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
-          <circle cx="8" cy="8" r="6"/>
-          <path d="M6.5 6.5a1.5 1.5 0 1 1 2 1.4c-.5.3-.8.7-.8 1.1" stroke-linecap="round"/>
-          <circle cx="8" cy="11.5" r=".8" fill="currentColor" stroke="none"/>
+          <circle cx="8" cy="8" r="6" />
+          <path d="M6.5 6.5a1.5 1.5 0 1 1 2 1.4c-.5.3-.8.7-.8 1.1" stroke-linecap="round" />
+          <circle cx="8" cy="11.5" r=".8" fill="currentColor" stroke="none" />
         </svg>
         Help
       </button>
@@ -200,7 +207,8 @@
           </div>
           <div class="field-row">
             <label>I<sub>y</sub></label>
-            <input id="prop-Iy" type="number" value="0" step="any" title="Moment of inertia about local y (3D beam bending in xz-plane)" />
+            <input id="prop-Iy" type="number" value="0" step="any"
+              title="Moment of inertia about local y (3D beam bending in xz-plane)" />
           </div>
           <div class="field-row">
             <label>J (torsion)</label>
@@ -236,8 +244,7 @@
           </div>
           <div class="field-row">
             <label>g<sub>z</sub></label>
-            <input id="grav-z" type="number" value="0" step="any"
-              title="Gravity z-component (3D models only)." />
+            <input id="grav-z" type="number" value="0" step="any" title="Gravity z-component (3D models only)." />
           </div>
         </section>
 
@@ -276,11 +283,15 @@
 
           <div class="field-row" style="margin-top:4px">
             <label>Mat</label>
-            <select id="ele-mat" class="combo"><option value="1">1</option></select>
+            <select id="ele-mat" class="combo">
+              <option value="1">1</option>
+            </select>
           </div>
           <div class="field-row">
             <label>Prop</label>
-            <select id="ele-prop" class="combo"><option value="1">1</option></select>
+            <select id="ele-prop" class="combo">
+              <option value="1">1</option>
+            </select>
           </div>
 
           <!-- Grid snap -->
@@ -299,36 +310,38 @@
           </div>
 
           <!-- Draw / Polygon buttons -->
-          <button id="btn-create-node" class="panel-btn draw-toggle" style="width:100%;margin-bottom:4px">✚ Create Node</button>
+          <button id="btn-create-node" class="panel-btn draw-toggle" style="width:100%;margin-bottom:4px">✚ Create
+            Node</button>
           <div class="field-row" style="gap:4px">
             <button id="btn-draw-start" class="panel-btn draw-toggle" style="flex:1">▶ Start Draw</button>
-            <button id="btn-draw-end"   class="panel-btn" style="flex:1" disabled>■ End Draw</button>
+            <button id="btn-draw-end" class="panel-btn" style="flex:1" disabled>■ End Draw</button>
           </div>
           <div class="field-row" style="margin-top:4px;gap:6px;align-items:center">
-            <input type="checkbox" id="chk-close-path" checked style="margin:0;cursor:pointer"/>
+            <input type="checkbox" id="chk-close-path" checked style="margin:0;cursor:pointer" />
             <label for="chk-close-path" style="font-size:12px;cursor:pointer"
-              title="ON: Close polygon (for 2D solid elements). OFF: Open polyline (for Beam / Bar elements).">Close Path</label>
+              title="ON: Close polygon (for 2D solid elements). OFF: Open polyline (for Beam / Bar elements).">Close
+              Path</label>
           </div>
           <p id="draw-status" class="muted" style="margin-top:4px;"></p>
 
           <!-- Mesh polygon (only relevant when 2D type is selected) -->
           <div class="field-row" style="margin-top:6px;gap:4px;align-items:center">
-            <label style="min-width:50px;font-size:11px" title="목표 요소 크기 (모델 단위). 비워 두면 경계 박스 대각선/8로 자동 설정.">Edge len</label>
-            <input id="mesh-edge-len" type="number" min="0" step="any" value=""
-              style="flex:1;min-width:0"
+            <label style="min-width:50px;font-size:11px" title="목표 요소 크기 (모델 단위). 비워 두면 경계 박스 대각선/8로 자동 설정.">Edge
+              len</label>
+            <input id="mesh-edge-len" type="number" min="0" step="any" value="" style="flex:1;min-width:0"
               title="Target element edge length (model units). Leave blank for auto." />
             <label style="font-size:11px;color:var(--text-dim);white-space:nowrap">Smooth</label>
-            <input id="mesh-smooth" type="number" min="0" max="20" value="3"
-              style="width:36px"
+            <input id="mesh-smooth" type="number" min="0" max="20" value="3" style="width:36px"
               title="Laplacian smoothing iterations (0 = off, recommended 3-5)" />
           </div>
           <div class="field-row" style="gap:4px">
             <button id="btn-mesh-poly" class="panel-btn" style="flex:1" disabled>Mesh Polygon</button>
-            <button id="btn-add-hole"  class="panel-btn" style="flex:1" disabled>+ Add Hole</button>
+            <button id="btn-add-hole" class="panel-btn" style="flex:1" disabled>+ Add Hole</button>
           </div>
           <div class="field-row" style="margin-top:2px;gap:4px;align-items:center">
             <label style="font-size:11px;color:var(--text-dim);white-space:nowrap">Hole type:</label>
-            <select id="hole-type" style="font-size:11px;flex:1;background:var(--bg-input,#2a2a2a);color:inherit;border:1px solid var(--border);border-radius:3px;padding:2px 4px"
+            <select id="hole-type"
+              style="font-size:11px;flex:1;background:var(--bg-input,#2a2a2a);color:inherit;border:1px solid var(--border);border-radius:3px;padding:2px 4px"
               title="Shape to use when drawing a hole">
               <option value="polygon">Polygon</option>
               <option value="rectangle">Rectangle</option>
@@ -406,8 +419,8 @@
           <div class="field-row">
             <label>Scale</label>
             <input id="scale-slider" type="range" min="0" max="1000" value="100" step="1" />
-            <input id="scale-input" type="number" class="slider-num-input" min="0" max="9999"
-              value="100" step="1" title="Deformation scale factor — type a value or drag the slider (values above 1000 are accepted)" />
+            <input id="scale-input" type="number" class="slider-num-input" min="0" max="9999" value="100" step="1"
+              title="Deformation scale factor — type a value or drag the slider (values above 1000 are accepted)" />
           </div>
         </section>
 
@@ -417,8 +430,8 @@
           <div class="field-row">
             <label>Size</label>
             <input id="diag-slider" type="range" min="1" max="500" value="100" step="1" />
-            <input id="diag-input" type="number" class="slider-num-input" min="1" max="9999"
-              value="100" step="1" title="Force diagram scale — type a value or drag the slider" />
+            <input id="diag-input" type="number" class="slider-num-input" min="1" max="9999" value="100" step="1"
+              title="Force diagram scale — type a value or drag the slider" />
           </div>
         </section>
 
@@ -479,7 +492,8 @@
   <footer id="status-bar">
     <span id="status-msg">Ready</span>
     <span id="status-cursor"></span>
-    <span id="status-version">FEPS v0.1 &nbsp;|&nbsp; Minho Kwon &nbsp;|&nbsp; Dept. of Civil Engineering, Gyeongsang National University</span>
+    <span id="status-version">FEPS v0.1 &nbsp;|&nbsp; Minho Kwon &nbsp;|&nbsp; Dept. of Civil Engineering, Gyeongsang
+      National University</span>
   </footer>
 
   <!-- Hidden file input -->
@@ -673,7 +687,8 @@
     <!-- ═══ POPUP: Analysis Output ═══ -->
     <div id="modal-output" class="modal-dialog hidden" style="width:600px;max-width:92vw">
       <h3>Analysis Output</h3>
-      <pre id="output-text" style="max-height:440px;overflow:auto;background:#1a1a2e;color:#d4e0f7;padding:10px 14px;border-radius:4px;font-size:11px;line-height:1.55;white-space:pre;margin:0 0 12px;font-family:monospace"></pre>
+      <pre id="output-text"
+        style="max-height:440px;overflow:auto;background:#1a1a2e;color:#d4e0f7;padding:10px 14px;border-radius:4px;font-size:11px;line-height:1.55;white-space:pre;margin:0 0 12px;font-family:monospace"></pre>
       <div class="modal-actions">
         <button id="btn-output-copy" class="panel-btn">Copy</button>
         <button id="btn-output-download" class="panel-btn">Download .txt</button>
@@ -687,8 +702,8 @@
     <div id="modal-elem-editor" class="modal-dialog ee-dialog">
       <h3 style="margin:0 0 10px;display:flex;align-items:center;gap:8px">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
-          <rect x="2" y="3" width="14" height="12" rx="1"/>
-          <path d="M5 8l-2 2 2 2M13 8l2 2-2 2M9 5l-1.5 7" stroke-linecap="round"/>
+          <rect x="2" y="3" width="14" height="12" rx="1" />
+          <path d="M5 8l-2 2 2 2M13 8l2 2-2 2M9 5l-1.5 7" stroke-linecap="round" />
         </svg>
         요소 코드 에디터 (Element Code Editor)
         <span style="margin-left:auto;font-size:11px;font-weight:400;color:var(--text-dim)">
@@ -702,9 +717,12 @@
         <select id="ee-template" class="tb-combo" style="flex:1;min-width:180px">
           <option value="">── 템플릿 선택 ──</option>
           <optgroup label="2D 고체 (평면응력/변형률)">
+            <option value="quad4">QUAD4 — 4절점 사각형 (쌍선형)</option>
+            <option value="quad4_sri">QUAD4-SRI — 4절점 (전단잠김 방지)</option>
             <option value="quad5">QUAD5 — 5절점 사각형 (버블 함수)</option>
             <option value="quad8">QUAD8 — 8절점 세렌디피티</option>
             <option value="quad9">QUAD9 — 9절점 라그랑지</option>
+            <option value="trig3">TRIG3 — 3절점 삼각형 (선형)</option>
             <option value="trig6">TRIG6 — 6절점 삼각형</option>
           </optgroup>
           <optgroup label="1D 봉 요소">
@@ -750,6 +768,74 @@
         </div>
       </div>
 
+      <!-- SRI (Selective Reduced Integration) 설정 패널 -->
+      <div id="ee-sri-panel"
+           style="border-top:1px solid var(--border,#dde);padding:8px 4px 4px;
+                  margin-top:4px;font-size:12px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+
+          <!-- SRI 활성화 토글 -->
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;
+                         font-weight:600;white-space:nowrap;color:var(--text-main)">
+            <input type="checkbox" id="ee-sri-enable" style="width:14px;height:14px">
+            SRI 활성화
+          </label>
+          <span style="color:var(--text-dim);font-size:11px;white-space:nowrap">
+            (전단잠김 방지: Selective Reduced Integration)
+          </span>
+
+          <!-- SRI 상세 제어 — 활성화 시 표시 -->
+          <div id="ee-sri-controls"
+               style="display:none;align-items:center;gap:12px;flex-wrap:wrap;
+                      padding:4px 8px;background:var(--panel-bg,#f8f9fb);
+                      border-radius:6px;border:1px solid var(--border,#dde)">
+
+            <!-- α: 정수압 부분 비율 -->
+            <label style="display:flex;align-items:center;gap:4px;white-space:nowrap">
+              <span style="font-weight:600;color:#1976D2">α</span>
+              <span style="color:var(--text-dim)">정수압(full):</span>
+              <input type="number" id="ee-sri-alpha" value="1.0"
+                     min="0" max="2" step="0.1"
+                     style="width:58px;text-align:right;padding:2px 4px;
+                            border:1px solid var(--border,#ccc);border-radius:4px">
+            </label>
+
+            <!-- β: 전단 부분 비율 -->
+            <label style="display:flex;align-items:center;gap:4px;white-space:nowrap">
+              <span style="font-weight:600;color:#d32f2f">β</span>
+              <span style="color:var(--text-dim)">전단(축소):</span>
+              <input type="number" id="ee-sri-beta" value="1.0"
+                     min="0" max="2" step="0.1"
+                     style="width:58px;text-align:right;padding:2px 4px;
+                            border:1px solid var(--border,#ccc);border-radius:4px">
+            </label>
+
+            <!-- 축소 가우스 차수 -->
+            <label style="display:flex;align-items:center;gap:4px;white-space:nowrap">
+              <span style="color:var(--text-dim)">축소 가우스:</span>
+              <select id="ee-sri-gred"
+                      style="padding:2px 4px;border:1px solid var(--border,#ccc);border-radius:4px">
+                <option value="">자동</option>
+                <option value="1">1점</option>
+                <option value="2">2점</option>
+                <option value="3">3점</option>
+              </select>
+            </label>
+
+            <!-- 유효 설정 표시 -->
+            <span id="ee-sri-hint"
+                  style="color:var(--text-dim);font-size:11px;white-space:nowrap"></span>
+          </div>
+
+          <!-- 코드에 적용 버튼 -->
+          <button id="ee-sri-apply" class="panel-btn"
+                  style="white-space:nowrap;margin-left:auto"
+                  title="SRI 설정을 코드 textarea에 삽입/갱신합니다">
+            ← 코드에 적용
+          </button>
+        </div>
+      </div>
+
       <!-- 하단 버튼 -->
       <div class="ee-footer">
         <!-- 파일 I/O -->
@@ -759,7 +845,8 @@
         <!-- 구분 -->
         <div style="flex:1"></div>
         <!-- 관리 -->
-        <button id="ee-clear-all" class="panel-btn" style="color:var(--danger)" title="localStorage 저장 데이터 삭제 후 페이지 새로고침">🗑️ 저장 초기화</button>
+        <button id="ee-clear-all" class="panel-btn" style="color:var(--danger)"
+          title="localStorage 저장 데이터 삭제 후 페이지 새로고침">🗑️ 저장 초기화</button>
         <button id="ee-close" class="panel-btn accent">닫기</button>
       </div>
     </div>
@@ -773,9 +860,9 @@
       <div class="dbg-header">
         <div style="display:flex;align-items:center;gap:8px">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
-            <circle cx="9" cy="9" r="6"/>
-            <line x1="9" y1="6" x2="9" y2="9.5"/>
-            <circle cx="9" cy="12.5" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="9" cy="9" r="6" />
+            <line x1="9" y1="6" x2="9" y2="9.5" />
+            <circle cx="9" cy="12.5" r="1" fill="currentColor" stroke="none" />
           </svg>
           <span style="font-weight:600;font-size:15px">FEA 디버그 뷰어</span>
         </div>
@@ -821,8 +908,8 @@
 
   <!-- ═══ HELP MODAL ═══ -->
   <!-- Scripts: 레지스트리 + 코어 먼저 로드 -->
-  <script src="js/element-registry.js"></script>
-  <script src="js/element-core.js"></script>
+  <script src="js/element-registry.js?v=2"></script>
+  <script src="js/element-core.js?v=2"></script>
   <!-- 기본 제공 학생 요소들 -->
   <script src="js/elements/quad5.js"></script>
   <script src="js/elements/quad8.js"></script>
@@ -834,12 +921,15 @@
   <!-- 기존 스크립트 -->
   <script src="js/parser.js"></script>
   <script src="js/solver.js"></script>
-  <script src="js/renderer.js"></script>
+  <script src="js/renderer.js?v=2"></script>
   <script src="js/mesher.js"></script>
   <script src="js/mesher2.js"></script>
+  <!-- TQMesh WASM mesher (SINGLE_FILE — WASM embedded in JS) -->
+  <script src="js/tqmesh.js?v=6" onerror="console.warn('TQMesh WASM not available')"></script>
+  <script src="js/tqmesh-wrapper.js?v=6"></script>
   <script src="js/main.js"></script>
   <!-- 요소 에디터 UI 로직 -->
-  <script src="js/element-editor-ui.js"></script>
+  <script src="js/element-editor-ui.js?v=4"></script>
   <!-- 디버그 모드: 데이터 수집기 → UI (순서 중요) -->
   <script src="js/element-debug.js"></script>
   <script src="js/element-debug-ui.js"></script>

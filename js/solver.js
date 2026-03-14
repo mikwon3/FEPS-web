@@ -309,17 +309,15 @@ const FepsSolver = (() => {
     // ────── Element DOF count ──────────────────────────────────────────────
 
     function elNode(typ) {
-        const builtIn = {
-            BAR2: 2, BAR3: 3, BAR3D: 2, BEAM2D: 2, BEAM3D: 2,
-            QUAD4: 4, QUAD5: 5, QUAD8: 8, QUAD9: 9,
-            TRIG3: 3, TRIG6: 6,
-            BAR2_3N: 3, TIMBEAM2D_2N: 2, TIMBEAM2D_3N: 3
-        };
-        if (builtIn[typ] !== undefined) return builtIn[typ];
-        // 레지스트리 fallback
+        // 레지스트리 우선 조회 (축소된 요소의 올바른 절점 수 반환)
         if (typeof FepsElementRegistry !== 'undefined' && FepsElementRegistry.has(typ))
             return FepsElementRegistry.nNodes(typ);
-        return 0;
+        const builtIn = {
+            BAR2: 2, BAR3: 3, BAR3D: 2, BEAM2D: 2, BEAM3D: 2,
+            QUAD4: 4, QUAD8: 8, TRIG3: 3, TRIG6: 6,
+            BAR2_3N: 3, TIMBEAM2D_2N: 2, TIMBEAM2D_3N: 3
+        };
+        return builtIn[typ] !== undefined ? builtIn[typ] : 0;
     }
 
     // ────── Body force fixed-end forces ───────────────────────────────────

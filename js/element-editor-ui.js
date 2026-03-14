@@ -12,6 +12,102 @@
 
     const TEMPLATES = {
 
+        quad4: `/* QUAD4 — 4절점 사각형 요소 (쌍선형, Bilinear)
+ * 절점: 코너 4개
+ *   4(−1,+1) ── 3(+1,+1)
+ *       |             |
+ *   1(−1,−1) ── 2(+1,−1)
+ * 구성방정식: constitModel 을 변경하세요
+ *   'planeStress'  → 평면응력  (σz = 0)   ← 박판, 평면 문제
+ *   'planeStrain'  → 평면변형률 (εz = 0)  ← 단면, 댐, 터널 등
+ * 주의: 굽힘 지배 문제에서 전단잠김 발생 → QUAD4-SRI 사용 권장
+ */
+FepsElementRegistry.register({
+  name: 'QUAD4',
+  category: 'solid2d',
+  nNodes: 4,
+  dofPerNode: 2,
+  cornerNodes: 4,
+
+  constitModel: 'planeStress',  // ← 여기를 변경
+  gaussOrder: 2,                // 2×2 가우스 구적 (표준)
+
+  // 형상함수 N(ξ, η) — 쌍선형 (bilinear)
+  shapeN(xi, eta) {
+    const N = new Float64Array(4);
+    N[0] = 0.25*(1-xi)*(1-eta);   // 절점 1 (−1,−1)
+    N[1] = 0.25*(1+xi)*(1-eta);   // 절점 2 (+1,−1)
+    N[2] = 0.25*(1+xi)*(1+eta);   // 절점 3 (+1,+1)
+    N[3] = 0.25*(1-xi)*(1+eta);   // 절점 4 (−1,+1)
+    return N;
+  },
+
+  // 형상함수 도함수 ∂N/∂ξ, ∂N/∂η
+  shapeDN(xi, eta) {
+    const dxi  = new Float64Array(4);
+    const deta = new Float64Array(4);
+    dxi[0]  = -0.25*(1-eta);  deta[0] = -0.25*(1-xi);
+    dxi[1]  =  0.25*(1-eta);  deta[1] = -0.25*(1+xi);
+    dxi[2]  =  0.25*(1+eta);  deta[2] =  0.25*(1+xi);
+    dxi[3]  = -0.25*(1+eta);  deta[3] =  0.25*(1-xi);
+    return { dxi, deta };
+  }
+});`,
+
+        quad4_sri: `/* QUAD4-SRI — 4절점 사각형 요소 + 전단잠김 방지 (SRI)
+ * ──────────────────────────────────────────────────────────────────
+ * SRI (Selective Reduced Integration):
+ *   구성행렬 D = D_vol (정수압) + D_dev (전단)
+ *
+ *   D_vol (full 가우스) — 체적변화 정확 표현
+ *   D_dev (축소 가우스) — 전단잠김(shear locking) 제거
+ *
+ *   K = α·K_vol(D_vol, gaussOrder) + β·K_dev(D_dev, gaussOrderReduced)
+ *
+ * 권장값: α=1.0, β=1.0, gaussOrderReduced=1 (2×2 → 1×1 축소)
+ *
+ * 구성방정식: constitModel 을 변경하세요
+ *   'planeStress'  → 평면응력  (σz = 0)   ← 박판, 평면 문제
+ *   'planeStrain'  → 평면변형률 (εz = 0)  ← 단면, 댐, 터널 등
+ * ──────────────────────────────────────────────────────────────────
+ */
+FepsElementRegistry.register({
+  name: 'QUAD4SRI',
+  category: 'solid2d',
+  nNodes: 4,
+  dofPerNode: 2,
+  cornerNodes: 4,
+
+  constitModel: 'planeStress',  // ← 여기를 변경
+  gaussOrder: 2,                // full 적분 차수 (사각형: 2×2)
+
+  sri: true,               // SRI 활성화 — 전단잠김 방지
+  sriAlpha: 1.0,           // 정수압 부분 반영 비율 (full 적분)
+  sriBeta: 1.0,            // 전단 부분 반영 비율 (축소 적분)
+  gaussOrderReduced: 1,    // 축소 적분 차수 (1×1 가우스)
+
+  // 형상함수 N(ξ, η) — 쌍선형 (bilinear)
+  shapeN(xi, eta) {
+    const N = new Float64Array(4);
+    N[0] = 0.25*(1-xi)*(1-eta);
+    N[1] = 0.25*(1+xi)*(1-eta);
+    N[2] = 0.25*(1+xi)*(1+eta);
+    N[3] = 0.25*(1-xi)*(1+eta);
+    return N;
+  },
+
+  // 형상함수 도함수 ∂N/∂ξ, ∂N/∂η
+  shapeDN(xi, eta) {
+    const dxi  = new Float64Array(4);
+    const deta = new Float64Array(4);
+    dxi[0]  = -0.25*(1-eta);  deta[0] = -0.25*(1-xi);
+    dxi[1]  =  0.25*(1-eta);  deta[1] = -0.25*(1+xi);
+    dxi[2]  =  0.25*(1+eta);  deta[2] =  0.25*(1+xi);
+    dxi[3]  = -0.25*(1+eta);  deta[3] =  0.25*(1-xi);
+    return { dxi, deta };
+  }
+});`,
+
         quad5: `/* QUAD5 — 5절점 사각형 요소 (버블 함수)
  * 절점: 4코너 (±1,±1) + 1중심 (0,0)
  * 구성방정식: constitModel 을 변경하세요
@@ -151,6 +247,47 @@ FepsElementRegistry.register({
     dxi[6]=dL3x*L2e; deta[6]=L3x*dL2e;
     dxi[7]=dL1x*L3e; deta[7]=L1x*dL3e;
     dxi[8]=dL3x*L3e; deta[8]=L3x*dL3e;
+    return { dxi, deta };
+  }
+});`,
+
+        trig3: `/* TRIG3 — 3절점 삼각형 요소 (선형, CST)
+ * CST: Constant Strain Triangle — 요소 내 변형률 일정
+ * 기준삼각형: (0,0)-(1,0)-(0,1)  (ξ, η ≥ 0, ξ+η ≤ 1)
+ * 절점:
+ *   1:(0,0)  2:(1,0)  3:(0,1)
+ * 면적 좌표: L1=1−ξ−η, L2=ξ, L3=η
+ * 구성방정식: constitModel 을 변경하세요
+ *   'planeStress'  → 평면응력  (σz = 0)
+ *   'planeStrain'  → 평면변형률 (εz = 0)
+ */
+FepsElementRegistry.register({
+  name: 'TRIG3',
+  category: 'solid2d',
+  nNodes: 3,
+  dofPerNode: 2,
+  cornerNodes: 3,
+  triangular: true,             // 삼각형 자연좌표계 사용
+
+  constitModel: 'planeStress',  // ← 여기를 변경
+  gaussOrder: 1,                // 1점 구적 (선형 요소에 충분)
+
+  // 형상함수 N(ξ, η)
+  shapeN(xi, eta) {
+    const N = new Float64Array(3);
+    N[0] = 1 - xi - eta;   // L1: 절점 1
+    N[1] = xi;              // L2: 절점 2
+    N[2] = eta;             // L3: 절점 3
+    return N;
+  },
+
+  // 형상함수 도함수 ∂N/∂ξ, ∂N/∂η (상수)
+  shapeDN(xi, eta) {
+    const dxi  = new Float64Array(3);
+    const deta = new Float64Array(3);
+    dxi[0]  = -1;  deta[0] = -1;   // ∂L1/∂ξ = −1,  ∂L1/∂η = −1
+    dxi[1]  =  1;  deta[1] =  0;   // ∂L2/∂ξ = +1,  ∂L2/∂η =  0
+    dxi[2]  =  0;  deta[2] =  1;   // ∂L3/∂ξ =  0,  ∂L3/∂η = +1
     return { dxi, deta };
   }
 });`,
@@ -338,6 +475,16 @@ FepsElementRegistry.register({
     const logDiv   = document.getElementById('ee-log');
     const listDiv  = document.getElementById('ee-elem-list');
 
+    // ── SRI 패널 DOM 참조 ───────────────────────────────────────────────
+
+    const chkSRIEnable = document.getElementById('ee-sri-enable');
+    const divSRICtrls  = document.getElementById('ee-sri-controls');
+    const inpAlpha     = document.getElementById('ee-sri-alpha');
+    const inpBeta      = document.getElementById('ee-sri-beta');
+    const selGRed      = document.getElementById('ee-sri-gred');
+    const btnSRIApply  = document.getElementById('ee-sri-apply');
+    const spanSRIHint  = document.getElementById('ee-sri-hint');
+
     // ── localStorage 키 접두사 ───────────────────────────────────────────
     const STORAGE_PREFIX = 'feps_elem_v1_';
 
@@ -346,6 +493,7 @@ FepsElementRegistry.register({
     if (btnOpen) btnOpen.addEventListener('click', () => {
         overlay.classList.remove('hidden');
         _refreshElemList();
+        _syncSriPanelFromCode();
         _log('요소 에디터 열림. 템플릿을 선택하거나 직접 코드를 작성하세요.', 'info');
         // 포커스를 코드 입력창으로 이동
         if (codeArea) setTimeout(() => codeArea.focus(), 50);
@@ -364,6 +512,128 @@ FepsElementRegistry.register({
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !overlay.classList.contains('hidden')) _closeEditor();
     });
+
+    // ── SRI 패널 로직 ────────────────────────────────────────────────────
+
+    /**
+     * 코드에서 SRI 관련 속성을 파싱하여 { sri, alpha, beta, gRed } 반환.
+     * 속성이 없으면 기본값: alpha=1.0, beta=1.0, gRed=null(자동).
+     */
+    function _parseSriFromCode(code) {
+        const sri   = /\bsri\s*:\s*true\b/.test(code);
+        const alphaM = code.match(/\bsriAlpha\s*:\s*([\d.]+)/);
+        const betaM  = code.match(/\bsriBeta\s*:\s*([\d.]+)/);
+        const gRedM  = code.match(/\bgaussOrderReduced\s*:\s*(\d+)/);
+        return {
+            sri,
+            alpha: alphaM ? parseFloat(alphaM[1]) : 1.0,
+            beta:  betaM  ? parseFloat(betaM[1])  : 1.0,
+            gRed:  gRedM  ? gRedM[1]              : ''
+        };
+    }
+
+    /**
+     * 코드에 SRI 속성을 삽입(또는 갱신).
+     * - 기존 sri/sriAlpha/sriBeta/gaussOrderReduced 라인을 제거한 뒤 재삽입.
+     * - gaussOrder: 행 뒤 또는 constitModel: 행 뒤에 삽입.
+     * - enabled=false 이면 SRI 라인만 제거하고 반환.
+     */
+    function _injectSriIntoCode(code, enabled, alpha, beta, gRed) {
+        // 기존 SRI 속성 라인 제거 (있을 경우)
+        ['sri', 'sriAlpha', 'sriBeta', 'gaussOrderReduced'].forEach(key => {
+            code = code.replace(
+                new RegExp(`\\n[ \\t]*${key}\\s*:[^\\n]*`, 'g'), ''
+            );
+        });
+        if (!enabled) return code;
+
+        // 삽입할 SRI 블록 생성
+        const gRedLine = gRed
+            ? `\n  gaussOrderReduced: ${gRed},    // 축소 가우스 점 수`
+            : '';
+        const block =
+            `\n  sri: true,               // SRI 활성화 — 전단잠김 방지` +
+            `\n  sriAlpha: ${alpha.toFixed(2)},        // α 정수압 부분 반영 비율 (full 적분)` +
+            `\n  sriBeta: ${beta.toFixed(2)},         // β 전단 부분 반영 비율 (축소 적분)` +
+            gRedLine;
+
+        // gaussOrder 또는 constitModel 행 뒤에 삽입
+        if (/\bgaussOrder\s*:/.test(code)) {
+            return code.replace(
+                /([ \t]*\bgaussOrder\s*:\s*\d+[^\n]*)/,
+                `$1${block}`
+            );
+        }
+        if (/\bconstitModel\s*:/.test(code)) {
+            return code.replace(
+                /([ \t]*\bconstitModel\s*:\s*'[^']*'[^\n]*)/,
+                `$1${block}`
+            );
+        }
+        // 마지막 수단: FepsElementRegistry.register({ 바로 뒤에 삽입
+        return code.replace(
+            /(FepsElementRegistry\.register\s*\(\s*\{)/,
+            `$1${block}`
+        );
+    }
+
+    /** SRI 패널 UI를 코드에서 읽은 값으로 갱신 */
+    function _syncSriPanelFromCode() {
+        if (!codeArea || !chkSRIEnable) return;
+        const { sri, alpha, beta, gRed } = _parseSriFromCode(codeArea.value);
+        chkSRIEnable.checked = sri;
+        divSRICtrls.style.display = sri ? 'flex' : 'none';
+        if (inpAlpha)  inpAlpha.value = alpha.toFixed(2);
+        if (inpBeta)   inpBeta.value  = beta.toFixed(2);
+        if (selGRed)   selGRed.value  = gRed;
+        _updateSriHint();
+    }
+
+    /** hint 텍스트 갱신: 유효 축소 가우스 수 표시 */
+    function _updateSriHint() {
+        if (!spanSRIHint || !chkSRIEnable || !chkSRIEnable.checked) return;
+        const gFull = (function() {
+            const m = codeArea.value.match(/\bgaussOrder\s*:\s*(\d+)/);
+            return m ? parseInt(m[1]) : 2;
+        })();
+        const gRedVal = selGRed ? selGRed.value : '';
+        const effectiveRed = gRedVal ? parseInt(gRedVal) : Math.max(1, gFull - 1);
+        spanSRIHint.textContent =
+            `(full ${gFull}점 → 축소 ${effectiveRed}점)`;
+    }
+
+    // SRI 활성화 체크박스
+    if (chkSRIEnable) {
+        chkSRIEnable.addEventListener('change', () => {
+            divSRICtrls.style.display = chkSRIEnable.checked ? 'flex' : 'none';
+            _updateSriHint();
+        });
+    }
+
+    // α, β, gRed 변경 시 hint 갱신
+    [inpAlpha, inpBeta, selGRed].forEach(el => {
+        if (el) el.addEventListener('input', _updateSriHint);
+    });
+
+    // "코드에 적용" 버튼
+    if (btnSRIApply) {
+        btnSRIApply.addEventListener('click', () => {
+            if (!codeArea) return;
+            const enabled = chkSRIEnable ? chkSRIEnable.checked : false;
+            const alpha   = inpAlpha ? parseFloat(inpAlpha.value) || 1.0 : 1.0;
+            const beta    = inpBeta  ? parseFloat(inpBeta.value)  || 1.0 : 1.0;
+            const gRed    = selGRed  ? selGRed.value : '';
+            codeArea.value = _injectSriIntoCode(codeArea.value, enabled, alpha, beta, gRed);
+            _log(enabled
+                ? `✅ SRI 설정 적용 — α=${alpha.toFixed(2)}, β=${beta.toFixed(2)}, 축소=${gRed||'자동'}`
+                : `ℹ️ SRI 비활성화 — SRI 관련 속성 제거됨`, 'info');
+        });
+    }
+
+    // 코드가 바뀔 때 SRI 패널 동기화
+    if (codeArea) {
+        codeArea.addEventListener('input', _syncSriPanelFromCode);
+    }
 
     // ── 탭(Tab) 키를 들여쓰기로 사용 ────────────────────────────────────
 
@@ -388,6 +658,7 @@ FepsElementRegistry.register({
         if (!tpl) { _log('해당 템플릿을 찾을 수 없습니다.', 'error'); return; }
         if (codeArea.value.trim() && !confirm('현재 코드를 지우고 템플릿을 불러올까요?')) return;
         codeArea.value = tpl;
+        _syncSriPanelFromCode();
         _log(`템플릿 "${selTpl.options[selTpl.selectedIndex].text}" 불러옴.`, 'info');
     });
 
@@ -499,6 +770,7 @@ FepsElementRegistry.register({
         const reader = new FileReader();
         reader.onload = (ev) => {
             if (codeArea) codeArea.value = ev.target.result;
+            _syncSriPanelFromCode();
             _log(`📂 "${file.name}" 불러옴. [▶ 등록]으로 실행하세요.`, 'info');
             fileInput.value = ''; // 같은 파일 재선택 허용
         };
@@ -571,9 +843,27 @@ FepsElementRegistry.register({
 
     // ── 등록 요소 목록 갱신 ─────────────────────────────────────────────
 
+    // 템플릿 드롭다운과 동일한 우선 순서
+    const _ELEM_ORDER = [
+        'QUAD4', 'QUAD4SRI',
+        'QUAD5', 'QUAD8', 'QUAD9',
+        'TRIG3', 'TRIG6',
+        'BAR2_3N',
+        'TIMBEAM2D_2N', 'TIMBEAM2D_3N'
+    ];
+
     function _refreshElemList() {
         if (!listDiv) return;
         const types = FepsElementRegistry.types();
+        // 템플릿 순서에 맞춰 정렬, 모르는 요소는 뒤에 추가
+        types.sort((a, b) => {
+            const ia = _ELEM_ORDER.indexOf(a);
+            const ib = _ELEM_ORDER.indexOf(b);
+            if (ia === -1 && ib === -1) return 0;
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+        });
         const saved = _getSavedElemNames();
 
         if (types.length === 0) {

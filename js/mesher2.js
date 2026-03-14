@@ -200,6 +200,34 @@ const FepsMesher2 = (() => {
 
         const numBdryPts = pts.length;  // indices [0, numBdryPts) are boundary
 
+        // ── Boundary topology helpers (used by validTri) ─────────────────
+        // Snapshot of all initial front edges — for reversed-edge detection.
+        const initialEdgeSet = new Set(front.map(e => `${e.a}_${e.b}`));
+
+        // Hole-only edge set — reversed hole edges point INTO the hole
+        // interior, creating permanently unresolvable zombie edges.
+        // Reversed outer edges are harmless (they just stall and rotate).
+        const holeEdgeSet = new Set();
+        { let s = outer.length;
+          for (const h of holes) {
+              for (let k = 0; k < h.length; k++)
+                  holeEdgeSet.add(`${s + k}_${s + (k + 1) % h.length}`);
+              s += h.length;
+          }
+        }
+
+        // Node group: 0 = outer boundary, k+1 = hole k, -1 = interior.
+        const outerLen   = outer.length;
+        const holeBounds = [];  // holeBounds[k] = first pts[] index for hole k
+        { let s = outerLen; for (const h of holes) { holeBounds.push(s); s += h.length; } }
+        function nodeGroupOf(i) {
+            if (i >= numBdryPts) return -1;              // interior node
+            if (i < outerLen)    return 0;               // outer boundary
+            for (let k = 0; k < holeBounds.length; k++)
+                if (i < holeBounds[k] + holes[k].length) return k + 1;
+            return -1;
+        }
+
         // ── 1d.  Spatial grid ───────────────────────────────────────────
         const grid = makeGrid(h * 1.5);
         for (let i = 0; i < pts.length; i++) grid.add(i, pts[i].x, pts[i].y);
@@ -215,11 +243,11 @@ const FepsMesher2 = (() => {
             tris.push([Ai, Bi, Pi]);
             delEdge(Ai, Bi);
 
-            // Process new edge (P → B)
+            // Process new edge (P → B): cancel if reverse B→P is in front; else add P→B.
             if (hasEdge(Bi, Pi)) delEdge(Bi, Pi);
             else                  addEdge(Pi, Bi);
 
-            // Process new edge (A → P)
+            // Process new edge (A → P): same logic.
             if (hasEdge(Pi, Ai)) delEdge(Pi, Ai);
             else                  addEdge(Ai, Pi);
         }
@@ -230,8 +258,9 @@ const FepsMesher2 = (() => {
         //    (a) P is strictly to the LEFT of directed edge A → B
         //    (b) Triangle centroid is inside the mesh domain (outer − holes)
         //    (c) All three angles ≥ 5° (no degenerate slivers)
-        //    (d) The two new edges (P→B) and (A→P) do not properly
-        //        intersect any existing front edge (shared endpoints ok)
+        //    (d) Neither new edge would reverse a consumed hole-boundary edge
+        //    (e) Cross-loop pure-base would not create a degree-4 "figure-8" at P
+        //    (f) The two new edges do not intersect any existing front edge
         //
         function validTri(Ai, Bi, Pi) {
             const A = pts[Ai], B = pts[Bi], P = pts[Pi];
@@ -244,19 +273,41 @@ const FepsMesher2 = (() => {
             const cx = (A.x + B.x + P.x) / 3, cy = (A.y + B.y + P.y) / 3;
             if (!inDomain({ x: cx, y: cy }, outer, holes)) return false;
 
-            // (c) Reject degenerate triangles: no angle < 5°
+            // (c) Reject degenerate slivers: no angle < 5°
             const cosMin = Math.cos(Math.PI / 36);   // cos(5°) ≈ 0.9962
             const AB = vsub(B, A), AP = vsub(P, A);
-            const cosA = vdot(AB, AP) / (vlen(AB) * vlen(AP) + 1e-14);
-            if (cosA > cosMin) return false;
+            if (vdot(AB, AP) / (vlen(AB) * vlen(AP) + 1e-14) > cosMin) return false;
             const BA = vsub(A, B), BP = vsub(P, B);
-            const cosB = vdot(BA, BP) / (vlen(BA) * vlen(BP) + 1e-14);
-            if (cosB > cosMin) return false;
+            if (vdot(BA, BP) / (vlen(BA) * vlen(BP) + 1e-14) > cosMin) return false;
             const PA = vsub(A, P), PB = vsub(B, P);
-            const cosC = vdot(PA, PB) / (vlen(PA) * vlen(PB) + 1e-14);
-            if (cosC > cosMin) return false;
+            if (vdot(PA, PB) / (vlen(PA) * vlen(PB) + 1e-14) > cosMin) return false;
 
-            // (d) No intersection with other front edges
+            // (d) Prevent zombie reversed-HOLE-boundary edges.
+            //     Reversed hole edges point into the hole interior and
+            //     permanently deadlock.  Reversed outer edges are harmless.
+            if (!hasEdge(Bi, Pi) && holeEdgeSet.has(`${Bi}_${Pi}`)) return false;
+            if (!hasEdge(Pi, Ai) && holeEdgeSet.has(`${Pi}_${Ai}`)) return false;
+
+            // (e) Cross-loop pinch-point prevention.
+            //     When the base edge (Ai→Bi) is a PURE-LOOP edge (both endpoints
+            //     from the same named boundary: outer or a specific hole) and Pi
+            //     is from a DIFFERENT loop, adding both new edges creates a
+            //     degree-4 "figure-8" node at Pi.  The resulting sub-loops can
+            //     deadlock if one inherits unresolvable edges.
+            //     Fire only when both new edges would be added (neither cancels).
+            if (!hasEdge(Bi, Pi) && !hasEdge(Pi, Ai)) {
+                const piG = nodeGroupOf(Pi), aiG = nodeGroupOf(Ai), biG = nodeGroupOf(Bi);
+                if (aiG === biG && aiG >= 0 && piG >= 0 && piG !== aiG) {
+                    let piOut = 0, piIn = 0;
+                    for (const e of front) {
+                        if (e.a === Pi) piOut++;
+                        if (e.b === Pi) piIn++;
+                    }
+                    if (piOut >= 1 && piIn >= 1) return false;
+                }
+            }
+
+            // (f) No intersection with other front edges
             //     Skip edges incident to A, B, or P — shared endpoint ≠ crossing.
             for (const e of front) {
                 if (e.a === Ai || e.b === Ai ||
@@ -267,6 +318,21 @@ const FepsMesher2 = (() => {
                 if (segXseg(A, P, EA, EB)) return false;
             }
             return true;
+        }
+
+        // Minimum angle (radians) of candidate triangle (Ai, Bi, Pi).
+        // Used in Phase C to prefer well-shaped triangles over slivers.
+        function triMinAngle(Ai, Bi, Pi) {
+            const A = pts[Ai], B = pts[Bi], P = pts[Pi];
+            const AB = vsub(B, A), AP = vsub(P, A);
+            const BA = vsub(A, B), BP = vsub(P, B);
+            const PA = vsub(A, P), PB = vsub(B, P);
+            const maxCos = Math.max(
+                vdot(AB, AP) / (vlen(AB) * vlen(AP) + 1e-14),
+                vdot(BA, BP) / (vlen(BA) * vlen(BP) + 1e-14),
+                vdot(PA, PB) / (vlen(PA) * vlen(PB) + 1e-14)
+            );
+            return Math.acos(Math.min(1, Math.max(-1, maxCos)));
         }
 
         // ── 1g.  Main advancing-front loop ─────────────────────────────
@@ -310,13 +376,48 @@ const FepsMesher2 = (() => {
             // ── Phase B: insert ideal point (if inside domain) ──────────
             if (chosen < 0 && inDomain(Pideal, outer, holes)) {
                 const tooClose = grid.query(Pideal.x, Pideal.y, h * 0.35)
-                    .some(i => i !== Ai && i !== Bi &&
-                               vdst(pts[i], Pideal) < h * 0.35);
+                    .some(i => i !== Ai && i !== Bi && vdst(pts[i], Pideal) < h * 0.35);
                 if (!tooClose) {
                     chosen = pts.length;
                     pts.push({ x: Pideal.x, y: Pideal.y });
                     grid.add(chosen, Pideal.x, Pideal.y);
                     stall = 0;
+                }
+            }
+
+            // ── Phase B-ext: Pideal inside hole — clamp to domain ───────
+            //   When the ideal apex lands inside a hole (gap < triH), binary-
+            //   search along the inward direction to find the deepest valid
+            //   insertion point just outside the hole boundary.
+            //   Inserting a fresh node here breaks the fan pattern that would
+            //   otherwise form when multiple front edges all claim the same
+            //   hole-boundary node as their Phase-A/C candidate.
+            if (chosen < 0 &&
+                !inDomain(Pideal, outer, holes) &&
+                ptInPoly(Pideal, outer)) {
+                // Binary search: lo = valid fraction, hi = invalid fraction
+                let lo = 0, hi = 1;
+                for (let k = 0; k < 10; k++) {
+                    const t  = (lo + hi) * 0.5;
+                    const px = mid.x + inward.x * triH * t;
+                    const py = mid.y + inward.y * triH * t;
+                    if (inDomain({ x: px, y: py }, outer, holes)) lo = t;
+                    else                                           hi = t;
+                }
+                // Only insert if apex is far enough from edge to avoid
+                // near-degenerate triangles (apex height > 0.2 h).
+                if (lo * triH > h * 0.2) {
+                    const px = mid.x + inward.x * triH * lo;
+                    const py = mid.y + inward.y * triH * lo;
+                    const tooClose = grid.query(px, py, h * 0.35)
+                        .some(i => i !== Ai && i !== Bi &&
+                                   vdst(pts[i], { x: px, y: py }) < h * 0.35);
+                    if (!tooClose) {
+                        chosen = pts.length;
+                        pts.push({ x: px, y: py });
+                        grid.add(chosen, px, py);
+                        stall = 0;
+                    }
                 }
             }
 
@@ -329,26 +430,143 @@ const FepsMesher2 = (() => {
                         .concat(grid.query(B.x, B.y, broadR))
                 )].filter(i => i !== Ai && i !== Bi);
                 broadC.sort((i, j) => vdst(pts[i], Pideal) - vdst(pts[j], Pideal));
+                // Pass 1: prefer candidates whose minimum angle ≥ 10°
                 for (const c of broadC) {
-                    if (validTri(Ai, Bi, c)) { chosen = c; break; }
+                    if (validTri(Ai, Bi, c) && triMinAngle(Ai, Bi, c) >= Math.PI / 18) {
+                        chosen = c; break;
+                    }
+                }
+                // Pass 2: accept any geometrically valid candidate (ensures convergence)
+                if (chosen < 0) {
+                    for (const c of broadC) {
+                        if (validTri(Ai, Bi, c)) { chosen = c; break; }
+                    }
                 }
             }
 
-            // ── Stall handling ──────────────────────────────────────────
-            if (chosen < 0) {
-                stall++;
-                if (stall > front.length * 4 + 20) {
-                    console.warn(`AFT: gave up with ${front.length} edge(s) remaining`);
-                    break;
-                }
-                // Rotate this edge to the end and try others first
-                front.splice(bestIdx, 1);
-                front.push(edge);
+            // ── Normal candidate found → apply and continue ────────────
+            if (chosen >= 0) {
+                applyTriangle(Ai, Bi, chosen);
+                stall = 0;
                 continue;
             }
 
-            applyTriangle(Ai, Bi, chosen);
-            stall = 0;
+            // ── No candidate found — advance stall counter ─────────────
+            stall++;
+
+            // Give-up check
+            if (stall > front.length * 4 + 20) {
+                console.warn(`AFT: gave up with ${front.length} edge(s) remaining`);
+                break;
+            }
+            // Rotate this edge to the end and try others first
+            front.splice(bestIdx, 1);
+            front.push(edge);
+        }
+
+        // ── Post-pass 1: Zombie edge cleanup ───────────────────────
+        //   Remove reversed initial boundary edges from front.
+        //   These point into hole interior or domain exterior.
+        for (let zi = front.length - 1; zi >= 0; zi--) {
+            const e = front[zi];
+            if (initialEdgeSet.has(`${e.b}_${e.a}`)) {
+                front.splice(zi, 1);
+                frontSet.delete(`${e.a}_${e.b}`);
+            }
+        }
+
+        // ── Post-pass 2: Ear fill ──────────────────────────────────
+        //   Repeatedly scan front for "ear" triangles (all three edges
+        //   already in front) and close them.  Each ear removes 3 edges.
+        let earFound = true;
+        while (front.length > 0 && earFound) {
+            earFound = false;
+            for (let fi = 0; fi < front.length; fi++) {
+                const { a: fAi, b: fBi } = front[fi];
+                const fA = pts[fAi], fB = pts[fBi];
+                for (const e of front) {
+                    let c = -1;
+                    if      (e.a === fBi && e.b !== fAi && hasEdge(e.b, fAi)) c = e.b;
+                    else if (e.b === fAi && e.a !== fBi && hasEdge(fBi, e.a)) c = e.a;
+                    if (c < 0) continue;
+
+                    const P = pts[c];
+                    if (vcrs(vsub(fB, fA), vsub(P, fA)) < 1e-12) continue;
+
+                    const ecx = (fA.x + fB.x + P.x) / 3;
+                    const ecy = (fA.y + fB.y + P.y) / 3;
+                    if (!inDomain({ x: ecx, y: ecy }, outer, holes) &&
+                        !inDomain({ x: (fA.x + fB.x) * 0.35 + P.x * 0.3,
+                                    y: (fA.y + fB.y) * 0.35 + P.y * 0.3 },
+                                  outer, holes)) continue;
+
+                    let xOk = true;
+                    for (const fe of front) {
+                        if (fe.a === fAi || fe.b === fAi ||
+                            fe.a === fBi || fe.b === fBi ||
+                            fe.a === c   || fe.b === c) continue;
+                        const EA = pts[fe.a], EB = pts[fe.b];
+                        if (segXseg(P, fB, EA, EB) || segXseg(fA, P, EA, EB))
+                            { xOk = false; break; }
+                    }
+                    if (!xOk) continue;
+
+                    applyTriangle(fAi, fBi, c);
+                    earFound = true;
+                    break;  // restart scan (front array modified)
+                }
+                if (earFound) break;
+            }
+        }
+
+        // ── Post-pass 3: Broad cleanup (relaxed quality) ────────────
+        //   For remaining front edges, try forming a triangle with ANY
+        //   nearby node.  Skip the min-angle check (accept slivers) and
+        //   skip the zombie check.  This closes narrow pockets between
+        //   the hole boundary and the outer boundary.
+        let ppProgress = true;
+        while (front.length > 0 && ppProgress) {
+            ppProgress = false;
+            for (let fi = 0; fi < front.length; fi++) {
+                const { a: Ai, b: Bi } = front[fi];
+                const A = pts[Ai], B = pts[Bi];
+                // Search for candidates near this edge
+                const mid = vmid(A, B);
+                const broadR = h * 3;
+                let broadC = [...new Set(
+                    grid.query(mid.x, mid.y, broadR)
+                        .concat(grid.query(A.x, A.y, broadR))
+                        .concat(grid.query(B.x, B.y, broadR))
+                )].filter(i => i !== Ai && i !== Bi);
+                // Sort by distance to midpoint
+                broadC.sort((i, j) => vdst(pts[i], mid) - vdst(pts[j], mid));
+                for (const c of broadC) {
+                    const P = pts[c];
+                    // CCW check
+                    if (vcrs(vsub(B, A), vsub(P, A)) < 1e-12) continue;
+                    // Centroid in domain
+                    const cx = (A.x + B.x + P.x) / 3, cy = (A.y + B.y + P.y) / 3;
+                    if (!inDomain({ x: cx, y: cy }, outer, holes)) continue;
+                    // No front-edge intersection
+                    let xOk = true;
+                    for (const e of front) {
+                        if (e.a === Ai || e.b === Ai ||
+                            e.a === Bi || e.b === Bi ||
+                            e.a === c  || e.b === c) continue;
+                        const EA = pts[e.a], EB = pts[e.b];
+                        if (segXseg(P, B, EA, EB) || segXseg(A, P, EA, EB))
+                            { xOk = false; break; }
+                    }
+                    if (!xOk) continue;
+                    // Only accept if front shrinks (at least one new edge
+                    // cancels an existing one).  Prevents infinite cycling.
+                    if (!hasEdge(Bi, c) && !hasEdge(c, Ai)) continue;
+                    applyTriangle(Ai, Bi, c);
+                    ppProgress = true;
+                    break;
+                }
+                if (ppProgress) break;  // restart scan
+            }
         }
 
         return { pts, tris, numBdryPts };
@@ -475,9 +693,15 @@ const FepsMesher2 = (() => {
     //  Boundary nodes (index < numBdryPts) are never moved.
     // ══════════════════════════════════════════════════════════════════════
 
-    function smooth(pts, elems, numBdry, iterations) {
+    function smooth(pts, elems, numBdry, iterations, outer, holes) {
         const N    = pts.length;
         const nbrs = Array.from({ length: N }, () => new Set());
+
+        // Track which elements touch each node (for orientation check)
+        const nodeElems = Array.from({ length: N }, () => []);
+        for (let ei = 0; ei < elems.length; ei++) {
+            for (const ni of elems[ei]) nodeElems[ni].push(ei);
+        }
 
         for (const e of elems) {
             const n = e.length;
@@ -487,11 +711,52 @@ const FepsMesher2 = (() => {
             }
         }
 
+        // cos(5°) — smoothing rejects any move that would produce an angle < 5°
+        const COS_SMOOTH_MIN = Math.cos(Math.PI / 36);
+
+        // Returns true if all elements touching node idx remain valid after
+        // the move: CCW winding, no interior angle smaller than 5°.
+        // Works for both triangles (n=3) and quads (n=4).
+        function triValid(idx) {
+            for (const ei of nodeElems[idx]) {
+                const e = elems[ei];
+                const n = e.length < 4 ? 3 : 4;   // use 3 or 4 corner nodes
+                // Signed-area check (Shoelace): must be positive (CCW)
+                let area2 = 0;
+                for (let k = 0; k < n; k++) {
+                    const p = pts[e[k]], q = pts[e[(k + 1) % n]];
+                    area2 += p.x * q.y - q.x * p.y;
+                }
+                if (area2 <= 0) return false;
+                // Interior angle check: no angle < 5°
+                for (let k = 0; k < n; k++) {
+                    const prev = pts[e[(k + n - 1) % n]];
+                    const curr = pts[e[k]];
+                    const next = pts[e[(k + 1) % n]];
+                    const ux = prev.x - curr.x, uy = prev.y - curr.y;
+                    const vx = next.x - curr.x, vy = next.y - curr.y;
+                    const lu = Math.sqrt(ux * ux + uy * uy) + 1e-14;
+                    const lv = Math.sqrt(vx * vx + vy * vy) + 1e-14;
+                    if ((ux * vx + uy * vy) / (lu * lv) > COS_SMOOTH_MIN) return false;
+                }
+            }
+            return true;
+        }
+
         for (let it = 0; it < iterations; it++) {
             for (let i = numBdry; i < N; i++) {
                 let sx = 0, sy = 0, cnt = 0;
                 for (const j of nbrs[i]) { sx += pts[j].x; sy += pts[j].y; cnt++; }
-                if (cnt > 0) { pts[i].x = sx / cnt; pts[i].y = sy / cnt; }
+                if (cnt === 0) continue;
+                const nx = sx / cnt, ny = sy / cnt;
+
+                // Guard 1: new position must be inside the mesh domain
+                if (!inDomain({ x: nx, y: ny }, outer, holes)) continue;
+
+                // Guard 2: move must not invert, degenerate, or create a sliver
+                const ox = pts[i].x, oy = pts[i].y;
+                pts[i].x = nx; pts[i].y = ny;
+                if (!triValid(i)) { pts[i].x = ox; pts[i].y = oy; }  // revert
             }
         }
     }
@@ -580,7 +845,7 @@ const FepsMesher2 = (() => {
         let elems = wantQuad ? triToQuad(pts, tris) : tris.slice();
 
         // ── Stage 3a: Laplacian smoothing ─────────────────────────────
-        if (smoothIter > 0) smooth(pts, elems, numBdryPts, smoothIter);
+        if (smoothIter > 0) smooth(pts, elems, numBdryPts, smoothIter, polygon, holes);
 
         // ── Stage 3b: Higher-order mid-nodes ──────────────────────────
         if      (elemType === 'TRIG6') elems = addMidTri (pts, elems);

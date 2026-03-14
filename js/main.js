@@ -32,9 +32,9 @@
     // 3D rotate state
     // Ctrl+drag  → orbit  (horizontal = azimuth, vertical = elevation)
     // Alt+drag   → twist  (horizontal = elevation, vertical = azimuth)
-    let isRotating    = false;   // Ctrl+drag orbit
+    let isRotating = false;   // Ctrl+drag orbit
     let isRotatingAlt = false;   // Alt+drag  twist
-    let rotateLast    = null;    // { sx, sy } shared by both modes
+    let rotateLast = null;    // { sx, sy } shared by both modes
 
     // Zoom-window state
     let zoomWindowMode = false;
@@ -280,8 +280,8 @@
             gridCount: parseInt($('grid-count').value) || 10,
             showDeformed: $('chk-deformed').checked,
             showGhost: $('chk-ghost').checked,
-            scaleFactor: Math.max(0, +$('scale-input').value  || 0),
-            diagScale:   Math.max(1, +$('diag-input').value   || 1),
+            scaleFactor: Math.max(0, +$('scale-input').value || 0),
+            diagScale: Math.max(1, +$('diag-input').value || 1),
             resultType: $('result-type').value
         };
     }
@@ -297,7 +297,7 @@
 
     // Returns true when the selected element type is a 2D solid (mesh) type
     function is2DType() {
-        return ['TRIG3','TRIG6','QUAD4','QUAD8'].includes($('ele-type').value);
+        return ['TRIG3', 'TRIG6', 'QUAD4', 'QUAD8'].includes($('ele-type').value);
     }
 
     // Nodes per element for 1D line-draw mode (unused when is2DType())
@@ -379,7 +379,7 @@
         }
 
         const closePath = $('chk-close-path').checked;
-        const minNodes  = closePath ? 3 : 2;
+        const minNodes = closePath ? 3 : 2;
 
         // Use polygonNodeList which tracks ALL unique nodes from the draw session
         const polyNodes = polygonNodeList.length >= minNodes ? polygonNodeList : drawNodeQueue;
@@ -390,7 +390,7 @@
                 return { x: n.x, y: n.y };
             });
             poly._nodeIds = [...polyNodes];
-            poly._closed  = closePath;
+            poly._closed = closePath;
 
             if (closePath) {
                 // ── Closed polygon: verify non-degenerate area ──
@@ -505,15 +505,15 @@
     //  Supports: TRIG3, TRIG6, QUAD4, QUAD8
     // ══════════════════════════════════════════════════════════════════════
 
-    function meshPolygon() {
+    async function meshPolygon() {
         const isPathClosed = closedPolygon ? (closedPolygon._closed !== false) : true;
         const minLen = isPathClosed ? 3 : 2;
         if (!closedPolygon || closedPolygon.length < minLen) {
             setStatus(`⚠ No ${isPathClosed ? 'closed polygon' : 'path'} to mesh. Use Start Draw → click nodes → End Draw → Mesh Polygon.`);
             return;
         }
-        const meshType   = $('ele-type').value;
-        const targetLen  = +$('mesh-edge-len').value || 0;   // 0 → auto
+        const meshType = $('ele-type').value;
+        const targetLen = +$('mesh-edge-len').value || 0;   // 0 → auto
         const smoothIter = Math.max(0, +$('mesh-smooth').value | 0);
         const mat = +$('ele-mat').value || 1;
         const pro = +$('ele-prop').value || 1;
@@ -550,8 +550,18 @@
 
         } else {
             // ── 2D solid type: generate filled mesh ──
+            let meshSuccess = false;
             try {
-                const result = FepsMesher2.generateMesh(closedPolygon, meshType, targetLen, smoothIter, holePolygons);
+                // TQMesh WASM only — no JS fallback
+                let result;
+                const _t0 = performance.now();
+                if (typeof FepsTQMesh === 'undefined' || !FepsTQMesh.isAvailable()) {
+                    throw new Error('TQMesh WASM 모듈이 로딩되지 않았습니다. 페이지를 새로고침해 주세요.');
+                }
+                result = await FepsTQMesh.generateMesh(closedPolygon, meshType, targetLen, smoothIter, holePolygons);
+                console.log('[Mesh] TQMesh generated', result.nodes.length, 'nodes,',
+                    result.elements.length, 'elements in',
+                    (performance.now() - _t0).toFixed(0), 'ms');
 
                 // Track what this mesh operation creates for atomic undo
                 const createdNodeIds = [];
@@ -589,16 +599,23 @@
                     if (nn === 3) elType = 'TRIG3';
                     else if (nn === 6) elType = 'TRIG6';
                     else if (nn === 4) elType = 'QUAD4';
+                    else if (nn === 5) elType = 'QUAD5';
                     else if (nn === 8) elType = 'QUAD8';
+                    else if (nn === 9) elType = 'QUAD9';
                     else continue;
 
+                    // Mark leftover tris in a quad mesh (for yellow highlight)
+                    const isQuadMesh = (meshType === 'QUAD4' || meshType === 'QUAD8' ||
+                                        meshType === 'QUAD5' || meshType === 'QUAD9');
+                    const isLeftover = isQuadMesh && (elType === 'TRIG3' || elType === 'TRIG6');
                     model.elements[nextEleId] = {
                         id: nextEleId, type: elType, mat, pro,
-                        nodes: mappedNodes, eload: [], angle: 0
+                        nodes: mappedNodes, eload: [], angle: 0,
+                        _leftover: isLeftover || undefined
                     };
                     createdElemIds.push(nextEleId);
                     nextEleId++;
-                    if (nn <= 6) countTri++; else countQuad++;
+                    if (nn === 3 || nn === 6) countTri++; else countQuad++;
                 }
 
                 model.header.numNod = Object.keys(model.nodes).length;
@@ -611,7 +628,7 @@
                         nodeIds: createdNodeIds,
                         elemIds: createdElemIds,
                         polygon: closedPolygon,
-                        holes:   [...holePolygons]
+                        holes: [...holePolygons]
                     });
                 }
 
@@ -623,10 +640,17 @@
                     : '';
                 const holeInfo = holePolygons.length > 0 ? ` (${holePolygons.length} hole${holePolygons.length > 1 ? 's' : ''})` : '';
                 setStatus(`✓ Meshed: ${total} ${meshType} elements created${detail}${holeInfo}`);
+                meshSuccess = true;
 
             } catch (err) {
                 setStatus(`⚠ Mesh error: ${err.message}`);
                 console.error('Mesh generation error:', err);
+            }
+
+            // ── Only clean up polygon if mesh succeeded ──
+            if (!meshSuccess) {
+                // Keep the polygon so the user can retry
+                return;
             }
         }
 
@@ -752,9 +776,9 @@
         if (sel.size === 0) return;
         $('modal-bc-info').textContent =
             `Assign to ${sel.size} selected node${sel.size > 1 ? 's' : ''}: [${[...sel].join(', ')}]`;
-        const cfg      = getDofConfig();
+        const cfg = getDofConfig();
         const firstNid = [...sel][0];
-        const bc       = model.bcs[firstNid] || null;
+        const bc = model.bcs[firstNid] || null;
         buildBCLoadUI('dlg-bc-checks-wrap', 'dlg-bc-load-wrap', bc, cfg);
         openModal('modal-bcload');
     }
@@ -929,7 +953,7 @@
             const fix = bc.tags.map((t, i) => {
                 if (!t) return '';
                 const lbl = bcLabels[i] ?? `D${i}`;
-                const d   = bc.disps ? bc.disps[i] : 0;
+                const d = bc.disps ? bc.disps[i] : 0;
                 return d !== 0 ? `${lbl}=${fmtNum(d)}` : lbl;
             }).filter(Boolean).join(', ');
             if (!fix) continue;
@@ -976,8 +1000,8 @@
                     } else {
                         // Load material values into input fields
                         const m = model.materials[id];
-                        $('mat-E').value   = m.E;
-                        $('mat-nu').value  = m.nu;
+                        $('mat-E').value = m.E;
+                        $('mat-nu').value = m.nu;
                         $('mat-rho').value = m.rho || 0;
                         editingMatId = id;
                         $('btn-add-mat').textContent = `Update M${id}`;
@@ -991,11 +1015,11 @@
                     } else {
                         // Load property values into input fields
                         const p = model.properties[id];
-                        $('prop-A').value     = p.A     || 0;
-                        $('prop-t').value     = p.t     || 0;
-                        $('prop-Iz').value    = p.Iz    || 0;
-                        $('prop-Iy').value    = p.Iy    || 0;
-                        $('prop-J').value     = p.J     || 0;
+                        $('prop-A').value = p.A || 0;
+                        $('prop-t').value = p.t || 0;
+                        $('prop-Iz').value = p.Iz || 0;
+                        $('prop-Iy').value = p.Iy || 0;
+                        $('prop-J').value = p.J || 0;
                         $('prop-alpha').value = p.alpha || 0;
                         editingProId = id;
                         $('btn-add-prop').textContent = `Update P${id}`;
@@ -1045,18 +1069,18 @@
     function buildOutputText() {
         if (!results) return '';
         const dofNod = model.header.dofNod;
-        const dim    = model.header.dim || 2;
-        const nids   = Object.keys(model.nodes).map(Number).sort((a, b) => a - b);
-        const eids   = Object.keys(model.elements).map(Number).sort((a, b) => a - b);
+        const dim = model.header.dim || 2;
+        const nids = Object.keys(model.nodes).map(Number).sort((a, b) => a - b);
+        const eids = Object.keys(model.elements).map(Number).sort((a, b) => a - b);
 
         const fmt = v => (v == null ? '            ---' : v.toExponential(4).padStart(15));
-        const sep  = '─'.repeat(72) + '\n';
+        const sep = '─'.repeat(72) + '\n';
         const dsep = '═'.repeat(72) + '\n';
 
-        const dispLabels  = dofNod >= 6 ? ['u','v','w','θx','θy','θz']
-                          : dofNod >= 3 ? ['u','v','θz'] : ['u','v'];
-        const forceLabels = dofNod >= 6 ? ['Fx','Fy','Fz','Mx','My','Mz']
-                          : dofNod >= 3 ? ['Fx','Fy','Mz'] : ['Fx','Fy'];
+        const dispLabels = dofNod >= 6 ? ['u', 'v', 'w', 'θx', 'θy', 'θz']
+            : dofNod >= 3 ? ['u', 'v', 'θz'] : ['u', 'v'];
+        const forceLabels = dofNod >= 6 ? ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz']
+            : dofNod >= 3 ? ['Fx', 'Fy', 'Mz'] : ['Fx', 'Fy'];
 
         let out = '';
 
@@ -1080,7 +1104,7 @@
         out += '    Node' + dispLabels.map(l => l.padStart(15)).join('') + '\n' + sep;
         for (const nid of nids) {
             const u = results.nodeDisp[nid] || [];
-            out += `  ${String(nid).padStart(6)}` + Array.from({length: dofNod}, (_, j) => fmt(u[j] || 0)).join('') + '\n';
+            out += `  ${String(nid).padStart(6)}` + Array.from({ length: dofNod }, (_, j) => fmt(u[j] || 0)).join('') + '\n';
         }
         out += '\n';
 
@@ -1094,8 +1118,8 @@
             out += '    Node' + forceLabels.map(l => l.padStart(15)).join('') + '\n' + sep;
             for (const nid of reactNids) {
                 const bc = model.bcs[nid];
-                const f  = results.nodeForce[nid] || [];
-                const vals = Array.from({length: dofNod}, (_, j) =>
+                const f = results.nodeForce[nid] || [];
+                const vals = Array.from({ length: dofNod }, (_, j) =>
                     (bc.tags[j] ? fmt(f[j] || 0) : '              0'));
                 out += `  ${String(nid).padStart(6)}` + vals.join('') + '\n';
             }
@@ -1105,9 +1129,9 @@
         // ── Element Forces ──────────────────────────────────────────────────
         out += '  ELEMENT FORCES\n' + sep;
         for (const eid of eids) {
-            const e   = model.elements[eid];
+            const e = model.elements[eid];
             const typ = e.type || '';
-            const ef  = results.elemForces[eid];
+            const ef = results.elemForces[eid];
             if (!ef) continue;
             const tag = `  Elem ${String(eid).padStart(4)}  [${typ}]`;
             if (typ === 'BAR2' || typ === 'BAR3D') {
@@ -1125,11 +1149,11 @@
         // ── Nodal Stress (2D elements) ──────────────────────────────────────
         if (results.nodeStress && Object.keys(results.nodeStress).length > 0) {
             out += '  NODAL STRESS (2D elements)\n' + sep;
-            out += '    Node' + ['σ_xx','σ_yy','τ_xy','σ_max','σ_min','Mises'].map(l => l.padStart(15)).join('') + '\n' + sep;
+            out += '    Node' + ['σ_xx', 'σ_yy', 'τ_xy', 'σ_max', 'σ_min', 'Mises'].map(l => l.padStart(15)).join('') + '\n' + sep;
             for (const nid of nids) {
                 const s = results.nodeStress[nid]; // array [σxx,σyy,τxy,σmax,σmin,mises]
                 if (!s) continue;
-                out += `  ${String(nid).padStart(6)}` + [s[0],s[1],s[2],s[3],s[4],s[5]].map(fmt).join('') + '\n';
+                out += `  ${String(nid).padStart(6)}` + [s[0], s[1], s[2], s[3], s[4], s[5]].map(fmt).join('') + '\n';
             }
             out += '\n';
         }
@@ -1148,24 +1172,24 @@
     //  HTML REPORT GENERATOR
     // ══════════════════════════════════════════════════════════════════════
     function generateReport() {
-        const dofNod  = model.header.dofNod;
-        const dim     = model.header.dim || 2;
-        const nids    = Object.keys(model.nodes).map(Number).sort((a, b) => a - b);
-        const eids    = Object.keys(model.elements).map(Number).sort((a, b) => a - b);
-        const mids    = Object.keys(model.materials).map(Number).sort((a, b) => a - b);
-        const pids    = Object.keys(model.properties).map(Number).sort((a, b) => a - b);
-        const hasRes  = !!results;
-        const date    = new Date().toLocaleString();
+        const dofNod = model.header.dofNod;
+        const dim = model.header.dim || 2;
+        const nids = Object.keys(model.nodes).map(Number).sort((a, b) => a - b);
+        const eids = Object.keys(model.elements).map(Number).sort((a, b) => a - b);
+        const mids = Object.keys(model.materials).map(Number).sort((a, b) => a - b);
+        const pids = Object.keys(model.properties).map(Number).sort((a, b) => a - b);
+        const hasRes = !!results;
+        const date = new Date().toLocaleString();
 
         const fN = v => (v == null || isNaN(v) ? '—' : v.toExponential(4));
         const fG = v => (v == null || isNaN(v) ? '—' : (+v.toPrecision(6)).toString());
 
-        const dLabels  = dofNod >= 6 ? ['u','v','w','θx','θy','θz']
-                       : dofNod >= 3 ? ['u','v','θz'] : ['u','v'];
-        const fLabels  = dofNod >= 6 ? ['Fx','Fy','Fz','Mx','My','Mz']
-                       : dofNod >= 3 ? ['Fx','Fy','Mz'] : ['Fx','Fy'];
-        const bcLabels = dofNod >= 6 ? ['Dx','Dy','Dz','Rx','Ry','Rz']
-                       : dofNod >= 3 ? ['Dx','Dy','Rz'] : ['Dx','Dy'];
+        const dLabels = dofNod >= 6 ? ['u', 'v', 'w', 'θx', 'θy', 'θz']
+            : dofNod >= 3 ? ['u', 'v', 'θz'] : ['u', 'v'];
+        const fLabels = dofNod >= 6 ? ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz']
+            : dofNod >= 3 ? ['Fx', 'Fy', 'Mz'] : ['Fx', 'Fy'];
+        const bcLabels = dofNod >= 6 ? ['Dx', 'Dy', 'Dz', 'Rx', 'Ry', 'Rz']
+            : dofNod >= 3 ? ['Dx', 'Dy', 'Rz'] : ['Dx', 'Dy'];
 
         // ── Table builder ──────────────────────────────────────────────────
         const tbl = (id, headers, rows) => {
@@ -1180,12 +1204,12 @@
 
         // ── 1. Node Information ────────────────────────────────────────────
         const nodeHdr = ['Node ID', 'X', 'Y', ...(dim === 3 ? ['Z'] : []),
-                         ...bcLabels.map(l => `BC&nbsp;${l}`),
-                         ...fLabels.map(l => `Load&nbsp;${l}`)];
+            ...bcLabels.map(l => `BC&nbsp;${l}`),
+            ...fLabels.map(l => `Load&nbsp;${l}`)];
         const nodeRows = nids.map(nid => {
-            const n  = model.nodes[nid];
+            const n = model.nodes[nid];
             const bc = model.bcs[nid] || {};
-            const tags   = bc.tags   || Array(dofNod).fill(0);
+            const tags = bc.tags || Array(dofNod).fill(0);
             const forces = bc.forces || Array(dofNod).fill(0);
             return [
                 nid, fG(n.x), fG(n.y), ...(dim === 3 ? [fG(n.z || 0)] : []),
@@ -1195,7 +1219,7 @@
         });
 
         // ── 2. Material Information ────────────────────────────────────────
-        const matHdr  = ['Mat ID', 'E (Young\'s Modulus)', 'ν (Poisson\'s Ratio)'];
+        const matHdr = ['Mat ID', 'E (Young\'s Modulus)', 'ν (Poisson\'s Ratio)'];
         const matRows = mids.map(mid => {
             const m = model.materials[mid];
             return [mid, fN(m.E), fG(m.nu ?? 0)];
@@ -1214,17 +1238,17 @@
         });
 
         // ── 4. Element Information ─────────────────────────────────────────
-        const maxN   = Math.max(...eids.map(eid => (model.elements[eid].nodes || []).length), 2);
+        const maxN = Math.max(...eids.map(eid => (model.elements[eid].nodes || []).length), 2);
         const elemHdr = ['Elem ID', 'Type', 'Mat', 'Prop',
-            ...Array.from({length: maxN}, (_, i) => `Node ${i + 1}`),
-            ...(dim === 3 ? ['wx','wy','wz'] : ['wx','wy'])];
+            ...Array.from({ length: maxN }, (_, i) => `Node ${i + 1}`),
+            ...(dim === 3 ? ['wx', 'wy', 'wz'] : ['wx', 'wy'])];
         const elemRows = eids.map(eid => {
-            const e  = model.elements[eid];
-            const en = e.nodes  || [];
-            const el = e.eload  || [];
+            const e = model.elements[eid];
+            const en = e.nodes || [];
+            const el = e.eload || [];
             return [eid, `<code>${e.type}</code>`, e.mat, e.pro,
-                ...Array.from({length: maxN}, (_, i) => en[i] ?? '—'),
-                ...(dim === 3 ? [el[0]||0, el[1]||0, el[2]||0] : [el[0]||0, el[1]||0])];
+                ...Array.from({ length: maxN }, (_, i) => en[i] ?? '—'),
+                ...(dim === 3 ? [el[0] || 0, el[1] || 0, el[2] || 0] : [el[0] || 0, el[1] || 0])];
         });
 
         // ── 5. Nodal Values (displacements + reactions) ────────────────────
@@ -1233,22 +1257,22 @@
             nodalBody = '<p class="no-res">⚠ Run analysis to see nodal results.</p>';
         } else {
             const nrHdr = ['Node', ...dLabels.map(l => `Disp&nbsp;${l}`),
-                           ...fLabels.map(l => `Reaction&nbsp;${l}`)];
+                ...fLabels.map(l => `Reaction&nbsp;${l}`)];
             const nrRows = nids.map(nid => {
-                const u    = results.nodeDisp[nid]  || [];
-                const f    = results.nodeForce[nid] || [];
-                const bc   = model.bcs[nid] || {};
+                const u = results.nodeDisp[nid] || [];
+                const f = results.nodeForce[nid] || [];
+                const bc = model.bcs[nid] || {};
                 const tags = bc.tags || [];
                 const fixed = tags.some(Boolean);
                 return [
                     fixed ? `<strong>${nid}</strong>` : nid,
-                    ...Array.from({length: dofNod}, (_, j) => fN(u[j] || 0)),
-                    ...Array.from({length: dofNod}, (_, j) =>
+                    ...Array.from({ length: dofNod }, (_, j) => fN(u[j] || 0)),
+                    ...Array.from({ length: dofNod }, (_, j) =>
                         tags[j] ? `<strong>${fN(f[j] || 0)}</strong>` : fN(f[j] || 0)),
                 ];
             });
             nodalBody = '<p class="note">Bold node = constrained; Bold reaction = at fixed DOF.</p>'
-                      + tbl('tbl-nodal', nrHdr, nrRows);
+                + tbl('tbl-nodal', nrHdr, nrRows);
         }
 
         // ── 6. Element Stress/Force (section forces at 5 positions) ──────────
@@ -1312,7 +1336,7 @@
                     });
                     ev += sfTbl(`tbl-ev-${typ}`, ['N — Axial Force', 'σ — Axial Stress'], groups);
 
-                // ── BEAM2D (N linear, V linear, M parabolic) ───────────────
+                    // ── BEAM2D (N linear, V linear, M parabolic) ───────────────
                 } else if (typ === 'BEAM2D') {
                     const groups = ids.map(eid => {
                         const ef = results.elemForces[eid] || {};
@@ -1321,18 +1345,18 @@
                         const label = `Elem ${eid}  (L = ${fG(L)},  ${wLabel})`;
                         const rows = markMax(sfT.map(t => {
                             const xp = t * L;
-                            const N  = ef.N1 + (ef.N2 - ef.N1) * t;
-                            const V  = ef.V1 + (ef.V2 - ef.V1) * t;
-                            const M  = ef.M1 + ef.V1 * xp
-                                     + wy1 * xp * xp / 2
-                                     + (wy2 - wy1) * xp * xp * xp / (6 * L);
+                            const N = ef.N1 + (ef.N2 - ef.N1) * t;
+                            const V = ef.V1 + (ef.V2 - ef.V1) * t;
+                            const M = ef.M1 + ef.V1 * xp
+                                + wy1 * xp * xp / 2
+                                + (wy2 - wy1) * xp * xp * xp / (6 * L);
                             return [t === 0 ? eid : '', t.toFixed(2), fN(N), fN(V), fN(M)];
                         }));
                         return { label, rows };
                     });
                     ev += sfTbl('tbl-ev-beam2d', ['N — Axial', 'V — Shear', 'M — Moment'], groups);
 
-                // ── BEAM3D (N/Vy/Vz/T linear, My/Mz parabolic) ────────────
+                    // ── BEAM3D (N/Vy/Vz/T linear, My/Mz parabolic) ────────────
                 } else if (typ === 'BEAM3D') {
                     const groups = ids.map(eid => {
                         const ef = results.elemForces[eid] || {};
@@ -1343,17 +1367,17 @@
                         const wzL = wz1 === wz2 ? `wz=${fG(wz1)}` : `wz=${fG(wz1)}→${fG(wz2)}`;
                         const label = `Elem ${eid}  (L = ${fG(L)},  ${wyL},  ${wzL})`;
                         const rows = markMax(sfT.map(t => {
-                            const xp  = t * L;
-                            const N   = ef.N1  + (ef.N2  - ef.N1)  * t;
-                            const Vy  = ef.Vy1 + (ef.Vy2 - ef.Vy1) * t;
-                            const Vz  = ef.Vz1 + (ef.Vz2 - ef.Vz1) * t;
-                            const T   = ef.T1  + (ef.T2  - ef.T1)  * t;
-                            const My  = ef.My1 + ef.Vz1 * xp
-                                      + wz1 * xp * xp / 2
-                                      + (wz2 - wz1) * xp * xp * xp / (6 * L);
-                            const Mz  = ef.Mz1 + ef.Vy1 * xp
-                                      + wy1 * xp * xp / 2
-                                      + (wy2 - wy1) * xp * xp * xp / (6 * L);
+                            const xp = t * L;
+                            const N = ef.N1 + (ef.N2 - ef.N1) * t;
+                            const Vy = ef.Vy1 + (ef.Vy2 - ef.Vy1) * t;
+                            const Vz = ef.Vz1 + (ef.Vz2 - ef.Vz1) * t;
+                            const T = ef.T1 + (ef.T2 - ef.T1) * t;
+                            const My = ef.My1 + ef.Vz1 * xp
+                                + wz1 * xp * xp / 2
+                                + (wz2 - wz1) * xp * xp * xp / (6 * L);
+                            const Mz = ef.Mz1 + ef.Vy1 * xp
+                                + wy1 * xp * xp / 2
+                                + (wy2 - wy1) * xp * xp * xp / (6 * L);
                             return [t === 0 ? eid : '', t.toFixed(2), fN(N), fN(Vy), fN(Vz), fN(T), fN(My), fN(Mz)];
                         }));
                         return { label, rows };
@@ -1383,11 +1407,11 @@
 
         // ── Assemble HTML ──────────────────────────────────────────────────
         const tocLinks = [
-            ['nodes',    '1. Node Information'],
-            ['mats',     '2. Material Information'],
-            ['props',    '3. Section Properties'],
-            ['elems',    '4. Element Information'],
-            ['nodal',    '5. Nodal Values'],
+            ['nodes', '1. Node Information'],
+            ['mats', '2. Material Information'],
+            ['props', '3. Section Properties'],
+            ['elems', '4. Element Information'],
+            ['nodal', '5. Nodal Values'],
             ['elemvals', '6. Element Stress/Force'],
             ...(stressSection ? [['stress', '7. Nodal Stress']] : []),
         ].map(([a, t]) => `<a href="#${a}">${t}</a>`).join('');
@@ -1464,7 +1488,7 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
   </header>
 
   ${sec('nodes', '1. ', 'Node Information', tbl('tbl-nodes', nodeHdr, nodeRows))}
-  ${sec('mats',  '2. ', 'Material Information', tbl('tbl-mats', matHdr, matRows))}
+  ${sec('mats', '2. ', 'Material Information', tbl('tbl-mats', matHdr, matRows))}
   ${sec('props', '3. ', 'Section Properties', tbl('tbl-props', propHdr, propRows))}
   ${sec('elems', '4. ', 'Element Information', tbl('tbl-elems', elemHdr, elemRows))}
   ${sec('nodal', '5. ', 'Nodal Values (Displacements &amp; Reactions)', nodalBody)}
@@ -1477,7 +1501,7 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
 
     function openReport() {
         const html = generateReport();
-        const win  = window.open('', '_blank');
+        const win = window.open('', '_blank');
         if (!win) { setStatus('Pop-up blocked — please allow pop-ups for this page.'); return; }
         win.document.open();
         win.document.write(html);
@@ -1900,25 +1924,25 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
      */
     function getDofConfig() {
         const dofNod = model.header.dofNod || 2;
-        const dim    = model.header.dim    || 2;
+        const dim = model.header.dim || 2;
         if (dofNod === 2) return {
             bcLabels: ['Ux', 'Uy'],
-            fLabels:  ['Fx', 'Fy'],
+            fLabels: ['Fx', 'Fy'],
             isMoment: [false, false]
         };
         if (dofNod === 3 && dim === 2) return {
             bcLabels: ['Ux', 'Uy', 'θz'],
-            fLabels:  ['Fx', 'Fy', 'Mz'],
+            fLabels: ['Fx', 'Fy', 'Mz'],
             isMoment: [false, false, true]
         };
         if (dofNod === 3 && dim === 3) return {
             bcLabels: ['Ux', 'Uy', 'Uz'],
-            fLabels:  ['Fx', 'Fy', 'Fz'],
+            fLabels: ['Fx', 'Fy', 'Fz'],
             isMoment: [false, false, false]
         };
         if (dofNod === 6) return {
             bcLabels: ['Ux', 'Uy', 'Uz', 'θx', 'θy', 'θz'],
-            fLabels:  ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz'],
+            fLabels: ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz'],
             isMoment: [false, false, false, true, true, true]
         };
         return { bcLabels: [], fLabels: [], isMoment: [] };
@@ -1937,23 +1961,23 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
             const label = document.createElement('label');
             label.className = 'chk';
             const chk = document.createElement('input');
-            chk.type    = 'checkbox';
-            chk.id      = `${bcWrapId}-${j}`;
+            chk.type = 'checkbox';
+            chk.id = `${bcWrapId}-${j}`;
             chk.checked = bc ? !!bc.tags[j] : false;
             label.appendChild(chk);
             label.appendChild(document.createTextNode(` Fix ${lbl}`));
 
             const eq = document.createElement('span');
-            eq.className   = 'bc-disp-label';
+            eq.className = 'bc-disp-label';
             eq.textContent = '=';
 
             const dispInp = document.createElement('input');
-            dispInp.type     = 'number';
-            dispInp.step     = 'any';
-            dispInp.id       = `${bcWrapId}-disp-${j}`;
-            dispInp.value    = bc ? ((bc.disps && bc.disps[j] != null) ? bc.disps[j] : 0) : 0;
+            dispInp.type = 'number';
+            dispInp.step = 'any';
+            dispInp.id = `${bcWrapId}-disp-${j}`;
+            dispInp.value = bc ? ((bc.disps && bc.disps[j] != null) ? bc.disps[j] : 0) : 0;
             dispInp.disabled = !chk.checked;
-            dispInp.title    = 'Displacement load (prescribed displacement). 0 = fully fixed.';
+            dispInp.title = 'Displacement load (prescribed displacement). 0 = fully fixed.';
 
             chk.addEventListener('change', () => {
                 dispInp.disabled = !chk.checked;
@@ -1975,7 +1999,7 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
             const inp = document.createElement('input');
             inp.type = 'number'; inp.step = 'any';
             inp.value = bc ? (bc.forces[j] || 0) : 0;
-            inp.id    = `${loadWrapId}-${j}`;
+            inp.id = `${loadWrapId}-${j}`;
             row.appendChild(labelEl); row.appendChild(inp);
             loadWrap.appendChild(row);
         });
@@ -1985,7 +2009,7 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
         const { bcLabels, fLabels } = cfg;
         const tags = [], forces = [], disps = [];
         bcLabels.forEach((_, j) => {
-            const el     = $(`${bcWrapId}-${j}`);
+            const el = $(`${bcWrapId}-${j}`);
             const dispEl = $(`${bcWrapId}-disp-${j}`);
             tags.push(el && el.checked ? 1 : 0);
             disps.push(dispEl ? (parseFloat(dispEl.value) || 0) : 0);
@@ -2045,8 +2069,8 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
 
     function openNodeCoordDialog(nid) {
         editingNodeId = nid;
-        const n   = model.nodes[nid];
-        const bc  = model.bcs[nid] || null;
+        const n = model.nodes[nid];
+        const bc = model.bcs[nid] || null;
         const cfg = getDofConfig();
 
         $('modal-nc-info').textContent = `Node ${nid}`;
@@ -2161,29 +2185,29 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
 
         // ── Element loads (eload + esurf) ──────────────────────────────────
         const etyp = e.type;
-        const isBeam  = ['BAR2','BAR3D','BEAM2D','BEAM3D'].includes(etyp);
-        const is3D    = etyp === 'BEAM3D';
-        const isBar   = etyp === 'BAR2' || etyp === 'BAR3D';
-        const isSolid = ['QUAD4','TRIG3','QUAD8','TRIG6'].includes(etyp);
+        const isBeam = ['BAR2', 'BAR3D', 'BEAM2D', 'BEAM3D'].includes(etyp);
+        const is3D = etyp === 'BEAM3D';
+        const isBar = etyp === 'BAR2' || etyp === 'BAR3D';
+        const isSolid = ['QUAD4', 'TRIG3', 'QUAD8', 'TRIG6'].includes(etyp);
 
         // Show/hide fieldsets
         const setHid = (id, hidden) => { const el = $(id); if (el) el.classList.toggle('hidden', hidden); };
-        setHid('dlg-eload-wrap',      false);           // always show (beam: wx/wy/temp; solid: ΔT only)
-        setHid('dlg-eload-wx-row',    isSolid);         // no axial load for solids
-        setHid('dlg-eload-wy-row',    isSolid || isBar);// no transverse for solids or bars
+        setHid('dlg-eload-wrap', false);           // always show (beam: wx/wy/temp; solid: ΔT only)
+        setHid('dlg-eload-wx-row', isSolid);         // no axial load for solids
+        setHid('dlg-eload-wy-row', isSolid || isBar);// no transverse for solids or bars
         setHid('dlg-esurf-beam-wrap', !isBeam);
         setHid('dlg-esurf-solid-wrap', !isSolid);
-        setHid('dlg-esurf-3d-rows',   !is3D);
-        setHid('dlg-eload-wz-row',    !is3D);
+        setHid('dlg-esurf-3d-rows', !is3D);
+        setHid('dlg-eload-wz-row', !is3D);
         // Update legend
         const legend = $('dlg-eload-legend');
         if (legend) legend.textContent = isSolid ? 'Thermal Load' : 'Uniform Dist. Load (local frame)';
 
         if (isBeam) {
             const el = e.eload || [];
-            $('dlg-eload-wx').value   = el[0] || 0;
-            $('dlg-eload-wy').value   = isBar ? 0 : (el[1] || 0);
-            $('dlg-eload-wz').value   = is3D ? (el[2] || 0) : 0;
+            $('dlg-eload-wx').value = el[0] || 0;
+            $('dlg-eload-wy').value = isBar ? 0 : (el[1] || 0);
+            $('dlg-eload-wz').value = is3D ? (el[2] || 0) : 0;
             // temp: BAR2/BAR3D → eload[1], BEAM2D → eload[2], BEAM3D → eload[3]
             $('dlg-eload-temp').value = isBar ? (el[1] || 0) : is3D ? (el[3] || 0) : (el[2] || 0);
 
@@ -2252,20 +2276,20 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
 
         // ── Element loads ──────────────────────────────────────────────────
         const etyp = e.type;
-        const isBeam  = ['BAR2','BAR3D','BEAM2D','BEAM3D'].includes(etyp);
-        const is3D    = etyp === 'BEAM3D';
-        const isBar   = etyp === 'BAR2' || etyp === 'BAR3D';
-        const isSolid = ['QUAD4','TRIG3','QUAD8','TRIG6'].includes(etyp);
+        const isBeam = ['BAR2', 'BAR3D', 'BEAM2D', 'BEAM3D'].includes(etyp);
+        const is3D = etyp === 'BEAM3D';
+        const isBar = etyp === 'BAR2' || etyp === 'BAR3D';
+        const isSolid = ['QUAD4', 'TRIG3', 'QUAD8', 'TRIG6'].includes(etyp);
 
         if (isBeam) {
-            const wx   = parseFloat($('dlg-eload-wx').value)   || 0;
-            const wy   = parseFloat($('dlg-eload-wy').value)   || 0;
-            const wz   = parseFloat($('dlg-eload-wz').value)   || 0;
+            const wx = parseFloat($('dlg-eload-wx').value) || 0;
+            const wy = parseFloat($('dlg-eload-wy').value) || 0;
+            const wz = parseFloat($('dlg-eload-wz').value) || 0;
             const temp = parseFloat($('dlg-eload-temp').value) || 0;
             // Build eload matching each element type's convention
-            if (isBar)       e.eload = [wx, temp];
-            else if (is3D)   e.eload = [wx, wy, wz, temp];   // BEAM3D: [wx, wy, wz, ΔT]
-            else              e.eload = [wx, wy, temp];         // BEAM2D
+            if (isBar) e.eload = [wx, temp];
+            else if (is3D) e.eload = [wx, wy, wz, temp];   // BEAM3D: [wx, wy, wz, ΔT]
+            else e.eload = [wx, wy, temp];         // BEAM2D
 
             // Trapezoidal esurf (beam)
             const wy1 = parseFloat($('dlg-esurf-wy1').value) || 0;
@@ -2299,25 +2323,25 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
         if (Object.keys(model.elements).length === 0) return;
         const types = new Set(Object.values(model.elements).map(e => e.type));
         let dofNod = 2, dim = 2;
-        if      (types.has('BEAM3D')) { dofNod = 6; dim = 3; }
-        else if (types.has('BAR3D'))  { dofNod = 3; dim = 3; }
+        if (types.has('BEAM3D')) { dofNod = 6; dim = 3; }
+        else if (types.has('BAR3D')) { dofNod = 3; dim = 3; }
         else if (types.has('BEAM2D')) { dofNod = 3; dim = 2; }
         // BAR2, QUAD4, TRIG3, QUAD8, TRIG6 → dofNod=2, dim=2 (default)
 
         model.header.dofNod = dofNod;
-        model.header.dim    = dim;
+        model.header.dim = dim;
         const secId = dim * dofNod;
         model.header.secType = secId === 6 ? '2DBeam' : secId === 18 ? '3DBeam' : 'Solid';
 
         // Extend or trim BC tags / forces / disps to match new dofNod
         for (const nid of Object.keys(model.bcs).map(Number)) {
             const bc = model.bcs[nid];
-            while (bc.tags.length   < dofNod) bc.tags.push(0);
+            while (bc.tags.length < dofNod) bc.tags.push(0);
             while (bc.forces.length < dofNod) bc.forces.push(0);
-            while (bc.disps.length  < dofNod) bc.disps.push(0);
-            bc.tags   = bc.tags.slice(0, dofNod);
+            while (bc.disps.length < dofNod) bc.disps.push(0);
+            bc.tags = bc.tags.slice(0, dofNod);
             bc.forces = bc.forces.slice(0, dofNod);
-            bc.disps  = bc.disps.slice(0, dofNod);
+            bc.disps = bc.disps.slice(0, dofNod);
         }
     }
 
@@ -2379,13 +2403,13 @@ code{background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:12.5px;color
             nextEleId = Math.max(1, ...Object.keys(model.elements).map(Number), 0) + 1;
             // Restore the polygon so the user can re-mesh
             closedPolygon = action.polygon || null;
-            holePolygons  = action.holes  || [];
+            holePolygons = action.holes || [];
             // 렌더러 오버레이도 복원
             FepsRenderer.clearClosedPolygon();
             if (closedPolygon) FepsRenderer.setClosedPolygon([...closedPolygon]);
             for (const h of holePolygons) FepsRenderer.addClosedHole([...h]);
             $('btn-mesh-poly').disabled = !closedPolygon;
-            $('btn-add-hole').disabled  = !closedPolygon;
+            $('btn-add-hole').disabled = !closedPolygon;
             updateHoleStatus();
             setStatus(`Undid mesh (removed ${action.elemIds.length} elements, ${action.nodeIds.length} nodes)`);
         }

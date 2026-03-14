@@ -30,6 +30,7 @@ FepsElementRegistry.register({
     nNodes:      9,
     dofPerNode:  2,
     cornerNodes: 4,
+    condense:    [8],              // 중심절점(9번) 정적 축소 → 8절점 요소로 동작
 
     constitModel: 'planeStress',   // 'planeStress' | 'planeStrain'
     gaussOrder:   3,

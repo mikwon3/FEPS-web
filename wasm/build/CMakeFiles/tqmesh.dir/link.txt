@@ -1,0 +1,1 @@
+/Users/stlab/emsdk/upstream/emscripten/em++ -O3 -DNDEBUG --bind -sMODULARIZE=1 -sEXPORT_NAME=TQMeshModule -sALLOW_MEMORY_GROWTH=1 -sENVIRONMENT=web -sFILESYSTEM=0 -sSINGLE_FILE=1 -sINITIAL_MEMORY=16777216 -Os @CMakeFiles/tqmesh.dir/objects1.rsp -o tqmesh.js

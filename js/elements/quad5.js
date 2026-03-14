@@ -28,6 +28,9 @@ FepsElementRegistry.register({
     nNodes:      5,
     dofPerNode:  2,
     cornerNodes: 4,          // 렌더링에 사용할 코너 절점 수
+    // 주의: condense:[4] 를 사용하면 정적 축소 후 강성행렬에 음의 대각 성분이
+    //       발생할 수 있음 (버블 함수 N_i = bilinear − bubble/4 의 특성).
+    //       다중 요소 조립 시 비양정치 전역 K 를 유발하므로 축소를 적용하지 않음.
 
     // ── 구성방정식 선택 ──────────────────────────────────────────────
     //   'planeStress' : 평면응력 (얇은 평판)

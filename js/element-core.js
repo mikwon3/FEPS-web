@@ -56,6 +56,180 @@ const FepsElementCore = (() => {
         return res;
     }
 
+    // ── 소규모 밀집 연립방정식 풀이 ──────────────────────────────────────
+
+    /**
+     * 소규모 밀집 연립방정식 A·x = b 풀이 (가우스 소거법 + 부분 피벗팅).
+     * A, b 를 복사하므로 원본을 변경하지 않는다.
+     * @param {Array}        A  — n×n 행렬 (2D jagged Float64Array)
+     * @param {Float64Array} b  — n-벡터
+     * @returns {Float64Array}  x — 해 벡터
+     */
+    function solveSmall(A, b) {
+        const n = b.length;
+        const Ac = zeros(n, n);
+        for (let i = 0; i < n; i++)
+            for (let j = 0; j < n; j++) Ac[i][j] = A[i][j];
+        const bc = vec(n);
+        for (let i = 0; i < n; i++) bc[i] = b[i];
+
+        // 전진 소거 (부분 피벗팅)
+        for (let k = 0; k < n; k++) {
+            let maxVal = Math.abs(Ac[k][k]), maxRow = k;
+            for (let i = k + 1; i < n; i++) {
+                if (Math.abs(Ac[i][k]) > maxVal) { maxVal = Math.abs(Ac[i][k]); maxRow = i; }
+            }
+            if (maxRow !== k) {
+                [Ac[k], Ac[maxRow]] = [Ac[maxRow], Ac[k]];
+                [bc[k], bc[maxRow]] = [bc[maxRow], bc[k]];
+            }
+            if (Math.abs(Ac[k][k]) < 1e-30) continue;
+            for (let i = k + 1; i < n; i++) {
+                const f = Ac[i][k] / Ac[k][k];
+                for (let j = k; j < n; j++) Ac[i][j] -= f * Ac[k][j];
+                bc[i] -= f * bc[k];
+            }
+        }
+        // 후진 대입
+        const x = vec(n);
+        for (let i = n - 1; i >= 0; i--) {
+            let s = bc[i];
+            for (let j = i + 1; j < n; j++) s -= Ac[i][j] * x[j];
+            x[i] = Math.abs(Ac[i][i]) > 1e-30 ? s / Ac[i][i] : 0;
+        }
+        return x;
+    }
+
+    /**
+     * 다중 우변 풀이  A·X = B.
+     * @param {Array} A — n×n 행렬
+     * @param {Array} B — n×m 행렬
+     * @returns {Array} X — n×m 해 행렬
+     */
+    function solveSmallMulti(A, B) {
+        const n = A.length, m = B[0].length;
+        const X = zeros(n, m);
+        for (let j = 0; j < m; j++) {
+            const bj = vec(n);
+            for (let i = 0; i < n; i++) bj[i] = B[i][j];
+            const xj = solveSmall(A, bj);
+            for (let i = 0; i < n; i++) X[i][j] = xj[i];
+        }
+        return X;
+    }
+
+    // ── 부분행렬 / 부분벡터 추출 ──────────────────────────────────────────
+
+    /**
+     * 부분행렬 추출: A[rows][cols].
+     * @param {Array}    A    — 원본 행렬
+     * @param {number[]} rows — 행 인덱스
+     * @param {number[]} cols — 열 인덱스
+     * @returns {Array}  부분행렬
+     */
+    function subMatrix(A, rows, cols) {
+        const r = rows.length, c = cols.length;
+        const S = zeros(r, c);
+        for (let i = 0; i < r; i++)
+            for (let j = 0; j < c; j++) S[i][j] = A[rows[i]][cols[j]];
+        return S;
+    }
+
+    /**
+     * 부분벡터 추출: v[indices].
+     * @param {Float64Array|number[]} v       — 원본 벡터
+     * @param {number[]}              indices — 인덱스 배열
+     * @returns {Float64Array} 부분벡터
+     */
+    function subVector(v, indices) {
+        const s = vec(indices.length);
+        for (let i = 0; i < indices.length; i++) s[i] = v[indices[i]];
+        return s;
+    }
+
+    // ── 정적 축소 (Static Condensation) ───────────────────────────────────
+
+    /**
+     * 정적 축소: 내부 자유도를 요소 레벨에서 제거.
+     *
+     *   K* = K_ee − K_ei · K_ii⁻¹ · K_ie
+     *   f* = f_e  − K_ei · K_ii⁻¹ · f_i
+     *
+     * @param {Array}        K            — nFull × nFull 강성행렬 (2D jagged)
+     * @param {Float64Array} f            — nFull 하중벡터
+     * @param {number[]}     internalDofs — 내부 DOF 인덱스 배열
+     * @returns {{ esm, force, dofesm, recovery }}
+     *   recovery: { Kii_inv_Kie, Kii_inv_fi, extDofs, intDofs }
+     */
+    function staticCondense(K, f, internalDofs) {
+        const nFull = K.length;
+        const intSet = new Set(internalDofs);
+
+        // 외부 DOF 인덱스 (순서 보존)
+        const extDofs = [];
+        for (let i = 0; i < nFull; i++) {
+            if (!intSet.has(i)) extDofs.push(i);
+        }
+        const nExt = extDofs.length;
+
+        // 부분행렬 추출
+        const Kee = subMatrix(K, extDofs, extDofs);
+        const Kei = subMatrix(K, extDofs, internalDofs);
+        const Kie = subMatrix(K, internalDofs, extDofs);
+        const Kii = subMatrix(K, internalDofs, internalDofs);
+        const fe  = subVector(f, extDofs);
+        const fi  = subVector(f, internalDofs);
+
+        // K_ii⁻¹ · K_ie  (nInt × nExt)
+        const Kii_inv_Kie = solveSmallMulti(Kii, Kie);
+        // K_ii⁻¹ · f_i   (nInt)
+        const Kii_inv_fi = solveSmall(Kii, fi);
+
+        // K* = Kee − Kei · (Kii⁻¹ · Kie)
+        const Kei_x = matMul(Kei, Kii_inv_Kie);
+        const Kstar = zeros(nExt, nExt);
+        for (let i = 0; i < nExt; i++)
+            for (let j = 0; j < nExt; j++)
+                Kstar[i][j] = Kee[i][j] - Kei_x[i][j];
+
+        // f* = fe − Kei · (Kii⁻¹ · fi)
+        const Kei_fi = matVecMul(Kei, Kii_inv_fi);
+        const fstar = vec(nExt);
+        for (let i = 0; i < nExt; i++) fstar[i] = fe[i] - Kei_fi[i];
+
+        return {
+            esm:    Kstar,
+            force:  fstar,
+            dofesm: nExt,
+            recovery: { Kii_inv_Kie, Kii_inv_fi, extDofs, intDofs: internalDofs }
+        };
+    }
+
+    /**
+     * 내부 변위 복원:
+     *   u_i = K_ii⁻¹ · f_i − K_ii⁻¹ · K_ie · u_e
+     *
+     * @param {{ Kii_inv_Kie, Kii_inv_fi, extDofs, intDofs }} recovery
+     * @param {Float64Array|number[]} ue — 외부 변위 (축소 순서)
+     * @returns {Float64Array} 전체 변위 벡터 (원래 DOF 순서)
+     */
+    function recoverInternalDofs(recovery, ue) {
+        const { Kii_inv_Kie, Kii_inv_fi, extDofs, intDofs } = recovery;
+        const nExt = extDofs.length, nInt = intDofs.length;
+        const nFull = nExt + nInt;
+
+        // u_i = Kii_inv_fi − Kii_inv_Kie · ue
+        const KKue = matVecMul(Kii_inv_Kie, new Float64Array(ue));
+        const ui = vec(nInt);
+        for (let i = 0; i < nInt; i++) ui[i] = Kii_inv_fi[i] - KKue[i];
+
+        // 전체 벡터 재조립
+        const uFull = vec(nFull);
+        for (let i = 0; i < nExt; i++) uFull[extDofs[i]] = ue[i];
+        for (let i = 0; i < nInt; i++) uFull[intDofs[i]] = ui[i];
+        return uFull;
+    }
+
     // ── 가우스-르장드르 구적 규칙 ([-1, 1] 표준 구간) ─────────────────
 
     const _GL = {
@@ -627,6 +801,130 @@ const FepsElementCore = (() => {
         return { esm: kg, force: vec(9), dofesm: 9 };
     }
 
+    // ── SRI: 구성행렬 분해 (정수압 + 전단) ──────────────────────────────
+
+    /**
+     * 구성행렬 D를 정수압(체적) 부분과 전단(변형) 부분으로 분해.
+     *
+     * 평면응력 (planeStress):
+     *   D_vol = (E / (2(1−ν))) · [1 1 0 ; 1 1 0 ; 0 0 0]
+     *   D_dev = G              · [1 −1 0 ; −1 1 0 ; 0 0 1]
+     *
+     * 평면변형률 (planeStrain):
+     *   D_vol = λ · [1 1 0 ; 1 1 0 ; 0 0 0]   (λ = Eν / ((1+ν)(1−2ν)))
+     *   D_dev = [2G 0 0 ; 0 2G 0 ; 0 0 G]
+     *
+     * 검증: D_vol + D_dev = D  ✓ (두 모델 모두)
+     *
+     * @param {string} constitModel  'planeStress' | 'planeStrain'
+     * @param {number} E             탄성계수
+     * @param {number} nu            포아송비
+     * @returns {{ Dvol: Array<Float64Array>, Ddev: Array<Float64Array> }}
+     */
+    function constitSplit(constitModel, E, nu) {
+        const G    = E / (2 * (1 + nu));
+        const Dvol = [new Float64Array(3), new Float64Array(3), new Float64Array(3)];
+        const Ddev = [new Float64Array(3), new Float64Array(3), new Float64Array(3)];
+
+        if (constitModel === 'planeStrain') {
+            const lam = E * nu / ((1 + nu) * (1 - 2 * nu));
+            // D_vol = λ · m·mᵀ  (m = [1, 1, 0]ᵀ)
+            Dvol[0][0] = lam;  Dvol[0][1] = lam;
+            Dvol[1][0] = lam;  Dvol[1][1] = lam;
+            // D_dev = diag(2G, 2G, G)
+            Ddev[0][0] = 2 * G;
+            Ddev[1][1] = 2 * G;
+            Ddev[2][2] = G;
+        } else {                                 // planeStress
+            const kappa = E / (2 * (1 - nu));   // 유효 평면응력 정수압 계수
+            // D_vol = κ · m·mᵀ
+            Dvol[0][0] = kappa;  Dvol[0][1] = kappa;
+            Dvol[1][0] = kappa;  Dvol[1][1] = kappa;
+            // D_dev = G · [1 −1 0 ; −1 1 0 ; 0 0 1]
+            Ddev[0][0] =  G;  Ddev[0][1] = -G;
+            Ddev[1][0] = -G;  Ddev[1][1] =  G;
+            Ddev[2][2] =  G;
+        }
+        return { Dvol, Ddev };
+    }
+
+    // ── SRI 강성: 사각형 요소 ─────────────────────────────────────────────
+
+    /**
+     * 선택적 축소 적분(SRI) 강성행렬 — 사각형(quad) 요소.
+     *
+     *   K = α · K_vol(D_vol, nGauss) + β · K_dev(D_dev, nGaussRed)
+     *
+     * α=β=1, nGaussRed=nGauss 이면 일반 full 적분과 동일.
+     * α=β=1, nGaussRed<nGauss 이면 SRI → 전단잠김 감소.
+     *
+     * @param {Function} shapeN        (xi,eta) → Float64Array[nNodes]
+     * @param {Function} shapeDN       (xi,eta) → { dxi, deta }
+     * @param {number}   nNodes        절점 수
+     * @param {number}   nGauss        정수압 부분 가우스 점 수 (full)
+     * @param {number[]} xn, yn        절점 좌표
+     * @param {number}   t             두께
+     * @param {string}   constitModel  'planeStress' | 'planeStrain'
+     * @param {number}   E, nu         재료 상수
+     * @param {number}   alpha         정수압 부분 반영 비율 (기본 1.0)
+     * @param {number}   beta          전단 부분 반영 비율 (기본 1.0)
+     * @param {number}   [nGaussRed]   축소 적분 가우스 점 수 (기본 nGauss−1, 최소 1)
+     * @returns {{ esm, force, dofesm }}
+     */
+    function isoStiffnessSRI2D(shapeN, shapeDN, nNodes, nGauss, xn, yn, t,
+                                constitModel, E, nu, alpha, beta, nGaussRed) {
+        const { Dvol, Ddev } = constitSplit(constitModel, E, nu);
+        const nRed = (nGaussRed != null) ? nGaussRed : Math.max(1, nGauss - 1);
+
+        const rVol = isoStiffness2D(shapeN, shapeDN, nNodes, nGauss, Dvol, xn, yn, t);
+        const rDev = isoStiffness2D(shapeN, shapeDN, nNodes, nRed,   Ddev, xn, yn, t);
+
+        const dofesm = nNodes * 2;
+        const esm    = zeros(dofesm, dofesm);
+        for (let i = 0; i < dofesm; i++)
+            for (let j = 0; j < dofesm; j++)
+                esm[i][j] = alpha * rVol.esm[i][j] + beta * rDev.esm[i][j];
+
+        return { esm, force: vec(dofesm), dofesm };
+    }
+
+    // ── SRI 강성: 삼각형 요소 ────────────────────────────────────────────
+
+    /**
+     * 선택적 축소 적분(SRI) 강성행렬 — 삼각형(tri) 요소.
+     *
+     * 삼각형 구적점 수: 1 / 3 / 6 만 유효.
+     * nGaussRed 기본값: nGauss≥6 → 3, 그 외 → 1
+     *
+     * @param {Function} shapeN, shapeDN  형상함수 / 도함수
+     * @param {number}   nNodes   절점 수
+     * @param {number}   nGauss   정수압 부분 가우스 점 수 (full)
+     * @param {number[]} xn, yn   절점 좌표
+     * @param {number}   t        두께
+     * @param {string}   constitModel
+     * @param {number}   E, nu
+     * @param {number}   alpha    정수압 비율
+     * @param {number}   beta     전단 비율
+     * @param {number}   [nGaussRed]  축소 구적점 수 (기본: nGauss≥6→3, 그 외→1)
+     * @returns {{ esm, force, dofesm }}
+     */
+    function isoStiffnessSRI_Tri(shapeN, shapeDN, nNodes, nGauss, xn, yn, t,
+                                  constitModel, E, nu, alpha, beta, nGaussRed) {
+        const { Dvol, Ddev } = constitSplit(constitModel, E, nu);
+        const nRed = (nGaussRed != null) ? nGaussRed : (nGauss >= 6 ? 3 : 1);
+
+        const rVol = isoStiffnessTri(shapeN, shapeDN, nNodes, nGauss, Dvol, xn, yn, t);
+        const rDev = isoStiffnessTri(shapeN, shapeDN, nNodes, nRed,   Ddev, xn, yn, t);
+
+        const dofesm = nNodes * 2;
+        const esm    = zeros(dofesm, dofesm);
+        for (let i = 0; i < dofesm; i++)
+            for (let j = 0; j < dofesm; j++)
+                esm[i][j] = alpha * rVol.esm[i][j] + beta * rDev.esm[i][j];
+
+        return { esm, force: vec(dofesm), dofesm };
+    }
+
     // ── 공개 API ────────────────────────────────────────────────────────
 
     return {
@@ -634,10 +932,14 @@ const FepsElementCore = (() => {
         gaussQuad1D, gaussQuadTri,
         // 구성방정식
         planeStressD, planeStrainD,
+        // 구성행렬 분해 (SRI용)
+        constitSplit,
         // 2D 아이소파라메트릭 (사각형)
         isoStiffness2D, isoBodyForce2D,
         // 2D 아이소파라메트릭 (삼각형)
         isoStiffnessTri, isoBodyForceTri,
+        // SRI 강성 (사각형 / 삼각형)
+        isoStiffnessSRI2D, isoStiffnessSRI_Tri,
         // 임의 점 응력
         isoStress2D_atPt,
         // 1D 봉
@@ -647,7 +949,13 @@ const FepsElementCore = (() => {
         // 완전 요소 강성 (회전 포함)
         timoshenko2N_stif, timoshenko3N_stif,
         // 저수준 선형대수
-        zeros, vec, matMul, transpose, matVecMul
+        zeros, vec, matMul, transpose, matVecMul,
+        // 소규모 연립방정식 풀이
+        solveSmall, solveSmallMulti,
+        // 부분행렬/벡터 추출
+        subMatrix, subVector,
+        // 정적 축소 (static condensation)
+        staticCondense, recoverInternalDofs
     };
 
 })();
