@@ -509,8 +509,17 @@ const FepsRenderer = (() => {
         _transform = { ox: W / 2 - midMx * newScale, oy: H / 2 + midMy * newScale, scale: newScale };
     }
 
+    /** Round to nearest "nice" grid spacing: 1, 2, 5, 10, 20, 50, ... */
+    function _niceGridSpacing(raw) {
+        if (!isFinite(raw) || raw <= 0) return 1;
+        const exp = Math.floor(Math.log10(raw));
+        const m = raw / Math.pow(10, exp);
+        const nice = m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10;
+        return nice * Math.pow(10, exp);
+    }
+
     function drawGrid(W, H) {
-        // In 3D mode draw a simple background pixel grid (no model-coord projection)
+        // In 3D mode draw a simple fixed-pixel background grid
         if (is3D()) {
             const spacing = 40;
             ctx.strokeStyle = '#e0e0e4';
@@ -522,63 +531,57 @@ const FepsRenderer = (() => {
             return;
         }
 
-        const gs = _opts.gridSpacing || 0;
-        const gridCount = _opts.gridCount || 10; // number of grid lines each direction from origin
+        const snapGs   = _opts.gridSpacing || 0;   // explicit snap-grid spacing (0 = off)
+        const gridCount = _opts.gridCount || 10;
         ctx.strokeStyle = '#e0e0e4';
         ctx.lineWidth = 0.5;
 
-        if (gs > 0 && _transform && _transform.scale) {
-            // Grid in model coordinates (aligned to model units)
+        // Determine effective grid spacing in model units
+        let gs = snapGs;
+        const hasTransform = _transform && _transform.scale > 0;
+        if (!(gs > 0) && hasTransform) {
+            // Auto spacing: target ~60 screen-pixels between grid lines, snapped to nice number
+            gs = _niceGridSpacing(60 / _transform.scale);
+        }
+
+        if (gs > 0 && hasTransform) {
             const screenSpacing = gs * _transform.scale;
 
-            // Don't draw if grid is too fine (would flood the screen)
-            if (screenSpacing < 5) {
-                // Fallback: draw sparse screen grid
-                const spacing = 40;
-                ctx.beginPath();
-                for (let x = 0; x < W; x += spacing) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-                for (let y = 0; y < H; y += spacing) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-                ctx.stroke();
+            // Skip if too fine or too coarse (safety guard)
+            if (screenSpacing < 4 || screenSpacing > Math.max(W, H) * 4) {
                 return;
             }
 
             // Compute visible model range
-            const topLeft = toModel(0, 0);
+            const topLeft  = toModel(0, 0);
             const botRight = toModel(W, H);
             const visXMin = Math.min(topLeft.x, botRight.x);
             const visXMax = Math.max(topLeft.x, botRight.x);
             const visYMin = Math.min(topLeft.y, botRight.y);
             const visYMax = Math.max(topLeft.y, botRight.y);
 
-            // Grid covers the visible area (never clips to ±gridCount from origin)
             const drawXMin = Math.floor(visXMin / gs) * gs;
-            const drawXMax = Math.ceil(visXMax / gs) * gs;
+            const drawXMax = Math.ceil(visXMax  / gs) * gs;
             const drawYMin = Math.floor(visYMin / gs) * gs;
-            const drawYMax = Math.ceil(visYMax / gs) * gs;
+            const drawYMax = Math.ceil(visYMax  / gs) * gs;
 
-            // Safety: bail if too many lines (shouldn't happen but guards edge cases)
-            if ((drawXMax - drawXMin) / gs > gridCount * 4 ||
-                (drawYMax - drawYMin) / gs > gridCount * 4) {
-                const spacing = 40;
-                ctx.beginPath();
-                for (let x = 0; x < W; x += spacing) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-                for (let y = 0; y < H; y += spacing) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-                ctx.stroke();
+            // Safety: skip if line count explodes
+            if ((drawXMax - drawXMin) / gs > 2000 ||
+                (drawYMax - drawYMin) / gs > 2000) {
                 return;
             }
 
-            // Lines span the full canvas height/width
             const lineTop = 0, lineBot = H, lineLeft = 0, lineRight = W;
 
-            // Draw minor grid lines
+            // Draw grid lines
             ctx.beginPath();
             for (let mx = drawXMin; mx <= drawXMax; mx += gs) {
-                if (Math.abs(mx) < gs * 1e-6) continue; // skip origin
+                if (Math.abs(mx) < gs * 1e-6) continue; // skip origin axis
                 const sp = toScreen(mx, 0);
                 ctx.moveTo(sp.x, lineTop); ctx.lineTo(sp.x, lineBot);
             }
             for (let my = drawYMin; my <= drawYMax; my += gs) {
-                if (Math.abs(my) < gs * 1e-6) continue; // skip origin
+                if (Math.abs(my) < gs * 1e-6) continue;
                 const sp = toScreen(0, my);
                 ctx.moveTo(lineLeft, sp.y); ctx.lineTo(lineRight, sp.y);
             }
@@ -593,27 +596,26 @@ const FepsRenderer = (() => {
             ctx.moveTo(lineLeft, oxPt.y); ctx.lineTo(lineRight, oxPt.y);
             ctx.stroke();
 
-            // Draw coordinate labels along axes
+            // Coordinate labels
             ctx.font = '10px "JetBrains Mono", monospace';
             ctx.fillStyle = '#888';
+            const labelSkip = Math.max(1, Math.ceil(30 / screenSpacing));
 
-            // X-axis labels (along bottom of axes)
-            const labelSkip = Math.max(1, Math.ceil(30 / screenSpacing)); // skip labels if too dense
             for (let mx = drawXMin; mx <= drawXMax; mx += gs * labelSkip) {
                 if (Math.abs(mx) < gs * 1e-6) continue;
                 const sp = toScreen(mx, 0);
+                const ly = Math.min(Math.max(oxPt.y + 14, 14), H - 4);
                 if (sp.x < 10 || sp.x > W - 10) continue;
                 ctx.textAlign = 'center';
-                ctx.fillText(fmtGridLabel(mx), sp.x, oxPt.y + 14);
+                ctx.fillText(fmtGridLabel(mx), sp.x, ly);
             }
-
-            // Y-axis labels (along left of axes)
             for (let my = drawYMin; my <= drawYMax; my += gs * labelSkip) {
                 if (Math.abs(my) < gs * 1e-6) continue;
                 const sp = toScreen(0, my);
+                const lx = Math.min(Math.max(oxPt.x - 6, 0), W - 6);
                 if (sp.y < 10 || sp.y > H - 10) continue;
                 ctx.textAlign = 'right';
-                ctx.fillText(fmtGridLabel(my), oxPt.x - 6, sp.y + 4);
+                ctx.fillText(fmtGridLabel(my), lx, sp.y + 4);
             }
 
             // Origin label
@@ -622,23 +624,25 @@ const FepsRenderer = (() => {
             ctx.font = 'bold 10px "JetBrains Mono", monospace';
             ctx.fillText('0', oxPt.x - 5, oxPt.y + 13);
 
-            // Draw faint boundary rectangle at ±gridCount*gs from origin (reference domain)
-            const domXMin = -gridCount * gs, domXMax = gridCount * gs;
-            const domYMin = -gridCount * gs, domYMax = gridCount * gs;
-            const bTL = toScreen(domXMin, domYMax);
-            const bBR = toScreen(domXMax, domYMin);
-            const bx = Math.max(0, bTL.x), by = Math.max(0, bTL.y);
-            const bw = Math.min(W, bBR.x) - bx, bh = Math.min(H, bBR.y) - by;
-            if (bw > 0 && bh > 0) {
-                ctx.strokeStyle = 'rgba(120,120,120,0.25)';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([4, 4]);
-                ctx.strokeRect(bx, by, bw, bh);
-                ctx.setLineDash([]);
+            // Boundary rectangle — only when using the explicit snap-grid spacing
+            if (snapGs > 0) {
+                const domXMin = -gridCount * gs, domXMax = gridCount * gs;
+                const domYMin = -gridCount * gs, domYMax = gridCount * gs;
+                const bTL = toScreen(domXMin, domYMax);
+                const bBR = toScreen(domXMax, domYMin);
+                const bx = Math.max(0, bTL.x), by = Math.max(0, bTL.y);
+                const bw = Math.min(W, bBR.x) - bx, bh = Math.min(H, bBR.y) - by;
+                if (bw > 0 && bh > 0) {
+                    ctx.strokeStyle = 'rgba(120,120,120,0.25)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeRect(bx, by, bw, bh);
+                    ctx.setLineDash([]);
+                }
             }
 
         } else {
-            // Default fixed-pixel grid
+            // No transform yet — fixed-pixel fallback
             const spacing = 40;
             ctx.beginPath();
             for (let x = 0; x < W; x += spacing) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }

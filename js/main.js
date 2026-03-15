@@ -643,7 +643,12 @@
                 meshSuccess = true;
 
             } catch (err) {
-                setStatus(`⚠ Mesh error: ${err.message}`);
+                if (err.message !== '사용자가 취소했습니다.') {
+                    setStatus(`⚠ Mesh error: ${err.message}`);
+                    alert(`메시 생성 실패:\n${err.message}`);
+                } else {
+                    setStatus('메시 생성이 취소되었습니다.');
+                }
                 console.error('Mesh generation error:', err);
             }
 

@@ -376,10 +376,17 @@ const FepsTQMesh = (() => {
                 'smooth=' + smoothIter,
                 '~' + estElems + ' elements');
 
-            if (estElems > 50000) {
+            if (estElems > 500000) {
                 throw new Error(
-                    `예상 요소 수가 너무 많습니다 (~${estElems}개). ` +
+                    `예상 요소 수가 너무 많습니다 (~${estElems.toLocaleString()}개). ` +
                     `Edge Length를 늘리거나 폴리곤을 줄여주세요.`);
+            }
+            if (estElems > 50000) {
+                const ok = confirm(
+                    `예상 요소 수가 많습니다 (~${estElems.toLocaleString()}개).\n` +
+                    `메시 생성에 다소 시간이 걸릴 수 있습니다.\n` +
+                    `계속하시겠습니까?`);
+                if (!ok) throw new Error('사용자가 취소했습니다.');
             }
         }
 
