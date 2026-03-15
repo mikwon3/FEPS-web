@@ -343,6 +343,11 @@ analysis</td>
 <td><strong>View Matrix</strong></td>
 <td>Manually open the debug viewer (available after any analysis)</td>
 </tr>
+<tr>
+<td><strong>Help</strong></td>
+<td>Open help window — switch between 한국어 / English using the buttons
+at the top (language preference saved in browser)</td>
+</tr>
 </tbody>
 </table>
 <h3 id="canvas-mouse-controls">3.2 Canvas Mouse Controls</h3>
@@ -1600,7 +1605,8 @@ in the browser and immediately use them in analysis</strong>.</p>
 <h3 id="screen-layout-1">11.2 Screen Layout</h3>
 <pre><code>┌──────────────────────────────────────────────────────────┐
 │  Element Code Editor                                     │
-│  Template: [dropdown▼]  [Load]  [▶ Register]  [Reset]   │
+│  User Elem: Dim:[2D▼] DOF/node:[2▼] nNodes:[4▼] [hint] │
+│  Slot:[UserElement1▼]  [Load to Editor→]  [▶ Register]  [Reset] │
 ├─────────────────────────────┬────────────────────────────┤
 │  Code Input (JavaScript)    │  Registered Elements       │
 │                             │  (💾=saved, 🗑️=delete)     │
@@ -1613,76 +1619,190 @@ in the browser and immediately use them in analysis</strong>.</p>
 ├──────────────────────────────────────────────────────────┤
 │  [💾 Export]  [📂 Open File]    [🗑️ Clear Storage]  [Close] │
 └──────────────────────────────────────────────────────────┘</code></pre>
-<h3 id="available-templates">11.3 Available Templates</h3>
-<p>Select a template from the dropdown, then click
-<strong>Load</strong>.</p>
+<h3 id="user-element-panel">11.3 User Element Panel</h3>
+<p>The user element panel classifies elements automatically using three
+inputs — <strong>dimension (dim), DOF/node, and number of nodes</strong>
+— then loads the matching code template into the editor.</p>
+<h4 id="input-fields">Input Fields</h4>
 <table>
 <colgroup>
-<col style="width: 43%" />
-<col style="width: 56%" />
+<col style="width: 24%" />
+<col style="width: 31%" />
+<col style="width: 44%" />
 </colgroup>
 <thead>
 <tr>
-<th>Template</th>
+<th>Input</th>
+<th>Options</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>QUAD4</strong></td>
-<td>4-node bilinear quadrilateral — basic reference element (2×2
-Gauss)</td>
+<td><strong>Dimension</strong></td>
+<td>2D / 3D</td>
+<td>Spatial dimension of the element</td>
 </tr>
 <tr>
-<td><strong>QUAD4-SRI</strong></td>
-<td>QUAD4 + Selective Reduced Integration (SRI) — shear-locking
-cure</td>
+<td><strong>DOF/node</strong></td>
+<td>2D → 2 or 3 / 3D → 3 or 6</td>
+<td>Degrees of freedom per node (auto-updated when dimension
+changes)</td>
 </tr>
 <tr>
-<td><strong>QUAD5</strong></td>
-<td>5-node bubble-function-enhanced quadrilateral — Gauss
-integration</td>
-</tr>
-<tr>
-<td><strong>QUAD8</strong></td>
-<td>8-node serendipity quadrilateral</td>
-</tr>
-<tr>
-<td><strong>QUAD9</strong></td>
-<td>9-node Lagrange quadrilateral</td>
-</tr>
-<tr>
-<td><strong>TRIG3</strong></td>
-<td>3-node linear triangle (CST) — basic reference element (1-point
-Gauss)</td>
-</tr>
-<tr>
-<td><strong>TRIG6</strong></td>
-<td>6-node Lagrange triangle</td>
-</tr>
-<tr>
-<td><strong>BAR2_3N</strong></td>
-<td>3-node 2D bar element (axial)</td>
-</tr>
-<tr>
-<td><strong>TIMBEAM2D_2N</strong></td>
-<td>2-node Timoshenko beam (shear deformation included)</td>
-</tr>
-<tr>
-<td><strong>TIMBEAM2D_3N</strong></td>
-<td>3-node Timoshenko beam</td>
-</tr>
-<tr>
-<td><strong>Blank template</strong></td>
-<td>Basic structure for solid2d / bar1d / beam2d_tim</td>
+<td><strong>Node count</strong></td>
+<td>Dynamically updated by classification</td>
+<td>Number of nodes in the element</td>
 </tr>
 </tbody>
 </table>
+<p>Whenever any input changes, the <strong>hint label</strong> shows the
+auto-classification result.</p>
+<h4 id="element-classification-rules">Element Classification Rules</h4>
+<table>
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 16%" />
+<col style="width: 20%" />
+<col style="width: 28%" />
+<col style="width: 24%" />
+</colgroup>
+<thead>
+<tr>
+<th>Dim</th>
+<th>DOF/node</th>
+<th>Node count</th>
+<th>Classification</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2D</td>
+<td>2</td>
+<td>2</td>
+<td>2D Truss (<code>bar1d</code>)</td>
+<td>2-node bar/truss element</td>
+</tr>
+<tr>
+<td>2D</td>
+<td>2</td>
+<td>3 ~ 9</td>
+<td>2D Solid (<code>solid2d</code>)</td>
+<td>Quad/triangle plane stress or strain</td>
+</tr>
+<tr>
+<td>2D</td>
+<td>3</td>
+<td>2 ~ 3</td>
+<td>2D Beam (<code>beam2d_tim</code>)</td>
+<td>Timoshenko beam element</td>
+</tr>
+<tr>
+<td>3D</td>
+<td>3</td>
+<td>2 ~ 3</td>
+<td>3D Truss (<code>bar1d</code>)</td>
+<td>Space truss element</td>
+</tr>
+<tr>
+<td>3D</td>
+<td>6</td>
+<td>2</td>
+<td>3D Beam (<code>beam3d_custom</code>)</td>
+<td>Space beam — requires custom <code>computeStiffness()</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="auto-selected-templates">Auto-Selected Templates</h4>
+<p>Based on classification and node count, the following starter code is
+auto-loaded into the editor:</p>
+<table>
+<thead>
+<tr>
+<th>Classification</th>
+<th>Node count</th>
+<th>Inserted template</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2D Solid</td>
+<td>3</td>
+<td>TRIG3</td>
+</tr>
+<tr>
+<td>2D Solid</td>
+<td>4</td>
+<td>QUAD4</td>
+</tr>
+<tr>
+<td>2D Solid</td>
+<td>5</td>
+<td>QUAD5</td>
+</tr>
+<tr>
+<td>2D Solid</td>
+<td>6</td>
+<td>TRIG6</td>
+</tr>
+<tr>
+<td>2D Solid</td>
+<td>8</td>
+<td>QUAD8</td>
+</tr>
+<tr>
+<td>2D Solid</td>
+<td>9</td>
+<td>QUAD9</td>
+</tr>
+<tr>
+<td>2D Solid</td>
+<td>other</td>
+<td>solid2d blank template</td>
+</tr>
+<tr>
+<td>2D Truss</td>
+<td>2</td>
+<td>2-node bar blank template</td>
+</tr>
+<tr>
+<td>2D Beam</td>
+<td>2</td>
+<td>TIMBEAM2D_2N</td>
+</tr>
+<tr>
+<td>2D Beam</td>
+<td>3</td>
+<td>TIMBEAM2D_3N</td>
+</tr>
+<tr>
+<td>3D Truss</td>
+<td>2 ~ 3</td>
+<td>bar3d blank template</td>
+</tr>
+<tr>
+<td>3D Beam</td>
+<td>2</td>
+<td>beam3d blank template (<code>computeStiffness</code> skeleton)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="userelement-slots">UserElement Slots</h4>
+<p>Select one of <strong>UserElement1 – UserElement5</strong> from the
+slot dropdown. When you click <strong>Load to Editor</strong>:</p>
+<ul>
+<li>The selected slot name is substituted into the <code>name:</code>
+field of the code.</li>
+<li>The chosen node count and DOF/node are substituted into
+<code>nNodes:</code> / <code>dofPerNode:</code>.</li>
+</ul>
+<p>Re-registering with the same slot name overwrites the existing
+element.</p>
 <blockquote>
 <p><strong>Registered element list sorting</strong>: The element list in
-the right panel of the editor is sorted in the same order as the
-template dropdown (QUAD4, QUAD4SRI, QUAD5, QUAD8, QUAD9, TRIG3, TRIG6,
-…).</p>
+the right panel is sorted as QUAD4, QUAD4SRI, QUAD5, QUAD8, QUAD9,
+TRIG3, TRIG6, … followed by UserElement1 – UserElement5.</p>
 </blockquote>
 <h3 id="registering-an-element">11.4 Registering an Element</h3>
 <ol type="1">
@@ -1963,10 +2083,22 @@ Adjusting α/β controls the relative contribution of each part.</p>
 <td>2D bar/truss</td>
 </tr>
 <tr>
+<td><code>bar1d</code></td>
+<td>3</td>
+<td>u, v, w (global coordinates)</td>
+<td>3D truss (space bar element)</td>
+</tr>
+<tr>
 <td><code>beam2d_tim</code></td>
 <td>3</td>
 <td>u, v, θ</td>
 <td>2D Timoshenko beam</td>
+</tr>
+<tr>
+<td><code>beam3d_custom</code></td>
+<td>6</td>
+<td>u, v, w, θx, θy, θz</td>
+<td>3D beam — requires custom <code>computeStiffness()</code></td>
 </tr>
 </tbody>
 </table>
@@ -2512,6 +2644,20 @@ angle (red) highlighted on canvas</td>
 <td>2D solid mesh engine replaced with TQMesh (FloSewn, MIT) WASM —
 advancing-front, tri/quad mixed mesh, Edge Length / Smooth parameters,
 hole support</td>
+</tr>
+<tr>
+<td>Help language toggle</td>
+<td>Korean / English toggle buttons added to the top of help.html;
+selected language saved in localStorage; TOC and search area refresh
+automatically on language switch</td>
+</tr>
+<tr>
+<td>User element panel</td>
+<td>Template dropdown replaced with three explicit inputs — dimension
+(2D/3D), DOF/node, node count — for automatic element classification;
+five UserElement1–5 slots provided; matching code template auto-loaded
+based on classification + node count; blank templates added for 3D truss
+(bar3d) and 3D beam (beam3d)</td>
 </tr>
 </tbody>
 </table>

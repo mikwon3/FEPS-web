@@ -454,7 +454,148 @@ FepsElementRegistry.register({
   nNodes: 2,          // 2 또는 3
   dofPerNode: 3,
   kappa: 5/6          // 전단보정계수
+});`,
+
+        // ── 사용자 요소용 추가 블랭크 템플릿 ──────────────────────────────
+
+        blank_bar2d_2n: `/* 사용자 요소 — 2D 트러스/봉 요소 (2절점, bar1d)
+ * 자유도: 절점당 2 (ux, uy)
+ * 강성행렬: K = ∫ EA·(dN/dx)ᵀ(dN/dx)dx — 전역 좌표로 자동 변환
+ * shapeN1D, shapeDN1D 구현 시 강성행렬 자동 계산됩니다.
+ */
+FepsElementRegistry.register({
+  name: 'UserElement1',   // ← .inp 파일의 TYPE 칸에 이 이름 사용
+  category: 'bar1d',
+  nNodes: 2,
+  dofPerNode: 2,          // 2D 트러스: ux, uy
+  gaussOrder: 2,
+
+  // 1D 형상함수 N(ξ), ξ ∈ [−1, +1]
+  shapeN1D(xi) {
+    const N = new Float64Array(2);
+    N[0] = 0.5*(1 - xi);   // 절점 1 (ξ = −1)
+    N[1] = 0.5*(1 + xi);   // 절점 2 (ξ = +1)
+    return N;
+  },
+
+  // 형상함수 도함수 dN/dξ
+  shapeDN1D(xi) {
+    const dN = new Float64Array(2);
+    dN[0] = -0.5;
+    dN[1] =  0.5;
+    return dN;
+  }
+});`,
+
+        blank_bar3d: `/* 사용자 요소 — 3D 트러스/봉 요소 (2절점, bar1d, 3D)
+ * 자유도: 절점당 3 (ux, uy, uz)
+ * .inp 설정: dofNod = 3 (3D 트러스 모델)
+ * shapeN1D, shapeDN1D 구현 시 강성행렬 자동 계산됩니다.
+ */
+FepsElementRegistry.register({
+  name: 'UserElement1',
+  category: 'bar1d',
+  nNodes: 2,
+  dofPerNode: 3,          // 3D 트러스: ux, uy, uz
+  gaussOrder: 2,
+
+  // 1D 형상함수 N(ξ), ξ ∈ [−1, +1]
+  shapeN1D(xi) {
+    const N = new Float64Array(2);
+    N[0] = 0.5*(1 - xi);   // 절점 1
+    N[1] = 0.5*(1 + xi);   // 절점 2
+    return N;
+  },
+
+  // 형상함수 도함수 dN/dξ
+  shapeDN1D(xi) {
+    const dN = new Float64Array(2);
+    dN[0] = -0.5;
+    dN[1] =  0.5;
+    return dN;
+  }
+});`,
+
+        blank_beam3d: `/* 사용자 요소 — 3D 보 요소 (2절점)
+ * 자유도: 절점당 6 (ux, uy, uz, θx, θy, θz)
+ * .inp 설정: dofNod = 6 (3D 보/프레임 모델)
+ * 주의: computeStiffness()를 직접 구현해야 합니다.
+ *   사용 가능 재료: mat.E, mat.nu, mat.rho
+ *   사용 가능 단면: prop.A, prop.Iz, prop.Iy, prop.J
+ */
+FepsElementRegistry.register({
+  name: 'UserElement1',
+  category: 'beam3d_custom',
+  nNodes: 2,
+  dofPerNode: 6,          // 3D 보: ux, uy, uz, θx, θy, θz
+
+  // 요소 강성행렬 (12×12, row-major Float64Array) 직접 반환
+  computeStiffness(mat, prop, xn, yn, zn) {
+    const nDof = this.nNodes * this.dofPerNode; // 12
+    const K    = new Float64Array(nDof * nDof);
+
+    const dx = xn[1]-xn[0], dy = yn[1]-yn[0], dz = zn[1]-zn[0];
+    const L  = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    const E  = mat.E, A = prop.A;
+    const Iz = prop.Iz || 0, Iy = prop.Iy || 0;
+    const GJ = E / (2*(1+mat.nu)) * (prop.J || 0);
+
+    // ── 여기에 3D 보 강성행렬 K(12×12) 조립 코드를 작성하세요 ──
+    // 참고: 오일러-베르누이 또는 티모셴코 3D 보 공식
+    //   축력:    EA/L
+    //   굽힘:    12EI/L³,  6EI/L²,  4EI/L,  2EI/L
+    //   비틀림:  GJ/L
+
+    return K;  // 요소 좌표계 강성행렬 (전역 좌표 변환은 solver가 처리)
+  }
 });`
+    };
+
+    // ── 사용자 요소 슬롯 & 분류 정보 ─────────────────────────────────────
+
+    /** 5개 사전 정의 슬롯 이름 */
+    const USER_SLOTS = [
+        'UserElement1', 'UserElement2', 'UserElement3',
+        'UserElement4', 'UserElement5'
+    ];
+
+    /**
+     * (dim, dofPerNode) 키 → { list, def, getCat(nNodes) }
+     *   list    : 유효 절점 수 목록
+     *   def     : 기본 절점 수
+     *   getCat  : 절점 수를 받아 내부 분류 문자열 반환
+     */
+    const USER_DIM_DOF = {
+        '2_2': { list:[2,3,4,5,6,7,8,9], def:4,
+                 getCat: n => (n === 2 ? 'bar2d' : 'solid2d') },
+        '2_3': { list:[2,3],             def:2, getCat: () => 'beam2d' },
+        '3_3': { list:[2,3],             def:2, getCat: () => 'bar3d'  },
+        '3_6': { list:[2],               def:2, getCat: () => 'beam3d' }
+    };
+
+    /** 차원별 DOF 옵션 */
+    const DIM_DOF_OPTS = { '2': [2, 3], '3': [3, 6] };
+
+    /** 분류 → 표시 레이블 */
+    const CAT_LABELS = {
+        solid2d : '2D 평면 (solid2d)',
+        bar2d   : '2D 트러스 (bar1d)',
+        beam2d  : '2D 보 (beam2d_tim)',
+        bar3d   : '3D 트러스 (bar1d)',
+        beam3d  : '3D 보 (beam3d)'
+    };
+
+    /**
+     * (분류, 절점 수) → TEMPLATES 키 매핑.
+     * '_' 키: 일치하는 절점 수가 없을 때 사용.
+     */
+    const USER_TPLMAP = {
+        solid2d : { 3:'trig3', 4:'quad4', 5:'quad5', 6:'trig6',
+                    8:'quad8', 9:'quad9', _:'blank_solid' },
+        bar2d   : { 2:'blank_bar2d_2n', 3:'bar2_3n', _:'blank_bar' },
+        beam2d  : { 2:'timbeam2n', 3:'timbeam3n', _:'blank_beam' },
+        bar3d   : { _:'blank_bar3d' },
+        beam3d  : { _:'blank_beam3d' }
     };
 
     // ── DOM 참조 ────────────────────────────────────────────────────────
@@ -464,16 +605,22 @@ FepsElementRegistry.register({
     const btnOpen  = document.getElementById('btn-elem-editor');
     const btnClose = document.getElementById('ee-close');
     const btnReg   = document.getElementById('ee-register');
-    const btnLoadTpl   = document.getElementById('ee-load-tpl');
     const btnClearCode = document.getElementById('ee-clear-code');
     const btnClearAll  = document.getElementById('ee-clear-all');
     const btnExport    = document.getElementById('ee-export');
     const btnImport    = document.getElementById('ee-import');
     const fileInput    = document.getElementById('ee-file-input');
-    const selTpl   = document.getElementById('ee-template');
     const codeArea = document.getElementById('ee-code');
     const logDiv   = document.getElementById('ee-log');
     const listDiv  = document.getElementById('ee-elem-list');
+
+    // ── 사용자 요소 패널 DOM 참조 ────────────────────────────────────────
+    const userDimSel    = document.getElementById('ee-user-dim');
+    const userDofSel    = document.getElementById('ee-user-dof');
+    const userNnodesSel = document.getElementById('ee-user-nnodes');
+    const userHintEl    = document.getElementById('ee-user-hint');
+    const userSlotSel   = document.getElementById('ee-user-slot');
+    const btnUserLoad   = document.getElementById('ee-user-load');
 
     // ── SRI 패널 DOM 참조 ───────────────────────────────────────────────
 
@@ -649,18 +796,110 @@ FepsElementRegistry.register({
         });
     }
 
-    // ── 템플릿 불러오기 ──────────────────────────────────────────────────
+    // ── 사용자 요소: 드롭다운 동적 갱신 ──────────────────────────────────
 
-    if (btnLoadTpl) btnLoadTpl.addEventListener('click', () => {
-        const key = selTpl.value;
-        if (!key) { _log('템플릿을 선택하세요.', 'warn'); return; }
-        const tpl = TEMPLATES[key];
-        if (!tpl) { _log('해당 템플릿을 찾을 수 없습니다.', 'error'); return; }
-        if (codeArea.value.trim() && !confirm('현재 코드를 지우고 템플릿을 불러올까요?')) return;
-        codeArea.value = tpl;
-        _syncSriPanelFromCode();
-        _log(`템플릿 "${selTpl.options[selTpl.selectedIndex].text}" 불러옴.`, 'info');
-    });
+    /** 현재 선택된 (dim, dof) 키로 USER_DIM_DOF 엔트리를 반환 */
+    function _userEntry() {
+        const dim = userDimSel  ? userDimSel.value  : '2';
+        const dof = userDofSel  ? userDofSel.value  : '2';
+        return USER_DIM_DOF[`${dim}_${dof}`] || USER_DIM_DOF['2_2'];
+    }
+
+    /** 자동 분류 힌트 레이블 갱신 */
+    function _updateUserHint() {
+        if (!userHintEl) return;
+        const nNodes = parseInt(userNnodesSel ? userNnodesSel.value : 4);
+        const cat    = _userEntry().getCat(nNodes);
+        userHintEl.textContent = '→ ' + (CAT_LABELS[cat] || cat);
+    }
+
+    /** DOF 드롭다운 갱신 (dim 변경 시) */
+    function _updateDofOptions() {
+        if (!userDofSel || !userDimSel) return;
+        const dim  = userDimSel.value;
+        const opts = DIM_DOF_OPTS[dim] || [2, 3];
+        const prev = parseInt(userDofSel.value) || opts[0];
+        userDofSel.innerHTML = '';
+        opts.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value       = d;
+            opt.textContent = d;
+            if (d === (opts.includes(prev) ? prev : opts[0])) opt.selected = true;
+            userDofSel.appendChild(opt);
+        });
+        _updateNnodesOptions();
+    }
+
+    /** 절점 수 드롭다운 갱신 (dim 또는 dof 변경 시) */
+    function _updateNnodesOptions() {
+        if (!userNnodesSel) return;
+        const entry = _userEntry();
+        const list  = entry.list;
+        const prev  = parseInt(userNnodesSel.value) || entry.def;
+        userNnodesSel.innerHTML = '';
+        list.forEach(n => {
+            const opt = document.createElement('option');
+            opt.value       = n;
+            opt.textContent = n;
+            if (n === (list.includes(prev) ? prev : entry.def)) opt.selected = true;
+            userNnodesSel.appendChild(opt);
+        });
+        _updateUserHint();
+    }
+
+    // 이벤트: dim 변경 → DOF + 절점 갱신
+    if (userDimSel) {
+        userDimSel.addEventListener('change', _updateDofOptions);
+    }
+    // 이벤트: dof 변경 → 절점 갱신
+    if (userDofSel) {
+        userDofSel.addEventListener('change', _updateNnodesOptions);
+    }
+    // 이벤트: nNodes 변경 → 힌트 갱신
+    if (userNnodesSel) {
+        userNnodesSel.addEventListener('change', _updateUserHint);
+    }
+
+    // 초기 채우기
+    _updateDofOptions();
+
+    // ── 사용자 요소 에디터 불러오기 ──────────────────────────────────────
+
+    if (btnUserLoad) {
+        btnUserLoad.addEventListener('click', () => {
+            const nNodes = parseInt(userNnodesSel ? userNnodesSel.value : 4);
+            const slot   = userSlotSel ? userSlotSel.value : 'UserElement1';
+            const cat    = _userEntry().getCat(nNodes);
+
+            const map = USER_TPLMAP[cat] || {};
+            const key = (map[nNodes] !== undefined) ? map[nNodes] : (map['_'] || 'blank_solid');
+            const tpl = TEMPLATES[key];
+
+            if (!tpl) {
+                _log(`❌ "${cat}" + ${nNodes}절점 템플릿을 찾을 수 없습니다.`, 'error');
+                return;
+            }
+            if (codeArea.value.trim() &&
+                !confirm(`현재 코드를 지우고 "${slot}" 템플릿을 불러올까요?`)) return;
+
+            // 이름을 슬롯명으로, 절점 수를 선택값으로 교체
+            const dim = parseInt(userDimSel ? userDimSel.value : 2);
+            const dof = parseInt(userDofSel ? userDofSel.value : 2);
+            let code = tpl
+                .replace(
+                    /(\bname\s*:\s*['"])([A-Za-z0-9_]+)(['"]\s*,)/,
+                    `$1${slot}$3`
+                )
+                .replace(/(\bnNodes\s*:\s*)\d+/,    `$1${nNodes}`)
+                .replace(/(\bdofPerNode\s*:\s*)\d+/, `$1${dof}`);
+
+            codeArea.value = code;
+            _syncSriPanelFromCode();
+            const catLabel = CAT_LABELS[cat] || cat;
+            _log(`✅ "${slot}" 템플릿 로드 — ${catLabel}, ${nNodes}절점`, 'info');
+            setTimeout(() => codeArea.focus(), 50);
+        });
+    }
 
     // ── 코드 초기화 ──────────────────────────────────────────────────────
 
@@ -843,13 +1082,14 @@ FepsElementRegistry.register({
 
     // ── 등록 요소 목록 갱신 ─────────────────────────────────────────────
 
-    // 템플릿 드롭다운과 동일한 우선 순서
+    // 등록 요소 목록에서 표시 순서 (알려진 요소 → 사용자 요소 슬롯 순)
     const _ELEM_ORDER = [
         'QUAD4', 'QUAD4SRI',
         'QUAD5', 'QUAD8', 'QUAD9',
         'TRIG3', 'TRIG6',
         'BAR2_3N',
-        'TIMBEAM2D_2N', 'TIMBEAM2D_3N'
+        'TIMBEAM2D_2N', 'TIMBEAM2D_3N',
+        ...USER_SLOTS
     ];
 
     function _refreshElemList() {

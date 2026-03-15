@@ -151,6 +151,7 @@ These sample elements are auto-loaded at startup and can also be registered via 
 | **Element Editor** | Open built-in code editor (write, register, manage custom elements) |
 | **Debug** | Toggle debug mode ON/OFF — auto-opens matrix/force viewer after analysis |
 | **View Matrix** | Manually open the debug viewer (available after any analysis) |
+| **Help** | Open help window — switch between 한국어 / English using the buttons at the top (language preference saved in browser) |
 
 ### 3.2 Canvas Mouse Controls
 
@@ -1031,7 +1032,8 @@ Click the **Element Editor** button in the toolbar.
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  Element Code Editor                                     │
-│  Template: [dropdown▼]  [Load]  [▶ Register]  [Reset]   │
+│  User Elem: Dim:[2D▼] DOF/node:[2▼] nNodes:[4▼] [hint] │
+│  Slot:[UserElement1▼]  [Load to Editor→]  [▶ Register]  [Reset] │
 ├─────────────────────────────┬────────────────────────────┤
 │  Code Input (JavaScript)    │  Registered Elements       │
 │                             │  (💾=saved, 🗑️=delete)     │
@@ -1046,25 +1048,59 @@ Click the **Element Editor** button in the toolbar.
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 11.3 Available Templates
+### 11.3 User Element Panel
 
-Select a template from the dropdown, then click **Load**.
+The user element panel classifies elements automatically using three inputs — **dimension (dim), DOF/node, and number of nodes** — then loads the matching code template into the editor.
 
-| Template | Description |
-|----------|-------------|
-| **QUAD4** | 4-node bilinear quadrilateral — basic reference element (2×2 Gauss) |
-| **QUAD4-SRI** | QUAD4 + Selective Reduced Integration (SRI) — shear-locking cure |
-| **QUAD5** | 5-node bubble-function-enhanced quadrilateral — Gauss integration |
-| **QUAD8** | 8-node serendipity quadrilateral |
-| **QUAD9** | 9-node Lagrange quadrilateral |
-| **TRIG3** | 3-node linear triangle (CST) — basic reference element (1-point Gauss) |
-| **TRIG6** | 6-node Lagrange triangle |
-| **BAR2_3N** | 3-node 2D bar element (axial) |
-| **TIMBEAM2D_2N** | 2-node Timoshenko beam (shear deformation included) |
-| **TIMBEAM2D_3N** | 3-node Timoshenko beam |
-| **Blank template** | Basic structure for solid2d / bar1d / beam2d_tim |
+#### Input Fields
 
-> **Registered element list sorting**: The element list in the right panel of the editor is sorted in the same order as the template dropdown (QUAD4, QUAD4SRI, QUAD5, QUAD8, QUAD9, TRIG3, TRIG6, …).
+| Input | Options | Description |
+|-------|---------|-------------|
+| **Dimension** | 2D / 3D | Spatial dimension of the element |
+| **DOF/node** | 2D → 2 or 3 / 3D → 3 or 6 | Degrees of freedom per node (auto-updated when dimension changes) |
+| **Node count** | Dynamically updated by classification | Number of nodes in the element |
+
+Whenever any input changes, the **hint label** shows the auto-classification result.
+
+#### Element Classification Rules
+
+| Dim | DOF/node | Node count | Classification | Description |
+|-----|---------|-----------|---------------|-------------|
+| 2D | 2 | 2 | 2D Truss (`bar1d`) | 2-node bar/truss element |
+| 2D | 2 | 3 ~ 9 | 2D Solid (`solid2d`) | Quad/triangle plane stress or strain |
+| 2D | 3 | 2 ~ 3 | 2D Beam (`beam2d_tim`) | Timoshenko beam element |
+| 3D | 3 | 2 ~ 3 | 3D Truss (`bar1d`) | Space truss element |
+| 3D | 6 | 2 | 3D Beam (`beam3d_custom`) | Space beam — requires custom `computeStiffness()` |
+
+#### Auto-Selected Templates
+
+Based on classification and node count, the following starter code is auto-loaded into the editor:
+
+| Classification | Node count | Inserted template |
+|---------------|-----------|-------------------|
+| 2D Solid | 3 | TRIG3 |
+| 2D Solid | 4 | QUAD4 |
+| 2D Solid | 5 | QUAD5 |
+| 2D Solid | 6 | TRIG6 |
+| 2D Solid | 8 | QUAD8 |
+| 2D Solid | 9 | QUAD9 |
+| 2D Solid | other | solid2d blank template |
+| 2D Truss | 2 | 2-node bar blank template |
+| 2D Beam | 2 | TIMBEAM2D_2N |
+| 2D Beam | 3 | TIMBEAM2D_3N |
+| 3D Truss | 2 ~ 3 | bar3d blank template |
+| 3D Beam | 2 | beam3d blank template (`computeStiffness` skeleton) |
+
+#### UserElement Slots
+
+Select one of **UserElement1 – UserElement5** from the slot dropdown. When you click **Load to Editor**:
+
+- The selected slot name is substituted into the `name:` field of the code.
+- The chosen node count and DOF/node are substituted into `nNodes:` / `dofPerNode:`.
+
+Re-registering with the same slot name overwrites the existing element.
+
+> **Registered element list sorting**: The element list in the right panel is sorted as QUAD4, QUAD4SRI, QUAD5, QUAD8, QUAD9, TRIG3, TRIG6, … followed by UserElement1 – UserElement5.
 
 ### 11.4 Registering an Element
 
@@ -1224,7 +1260,9 @@ Same pure-bending cantilever model (QUAD4, coarse mesh):
 |----------|---------|--------------|-------|
 | `solid2d` | 2 | u, v (horizontal · vertical) | 2D plane stress/strain |
 | `bar1d` | 2 | u, v (global coordinates) | 2D bar/truss |
+| `bar1d` | 3 | u, v, w (global coordinates) | 3D truss (space bar element) |
 | `beam2d_tim` | 3 | u, v, θ | 2D Timoshenko beam |
+| `beam3d_custom` | 6 | u, v, w, θx, θy, θz | 3D beam — requires custom `computeStiffness()` |
 
 ---
 
@@ -1624,6 +1662,8 @@ FEPS-web/
 | SRI | `constitSplit()`, `isoStiffnessSRI2D()`, `isoStiffnessSRI_Tri()` added to FepsElementCore; `sri`/`sriAlpha`/`sriBeta`/`gaussOrderReduced` descriptor fields; SRI panel in element editor; QUAD4 bending accuracy ~38% → ~98% |
 | Mesh quality display | Triangular leftover elements (orange) and bad quads ≥ 150° interior angle (red) highlighted on canvas |
 | TQMesh engine | 2D solid mesh engine replaced with TQMesh (FloSewn, MIT) WASM — advancing-front, tri/quad mixed mesh, Edge Length / Smooth parameters, hole support |
+| Help language toggle | Korean / English toggle buttons added to the top of help.html; selected language saved in localStorage; TOC and search area refresh automatically on language switch |
+| User element panel | Template dropdown replaced with three explicit inputs — dimension (2D/3D), DOF/node, node count — for automatic element classification; five UserElement1–5 slots provided; matching code template auto-loaded based on classification + node count; blank templates added for 3D truss (bar3d) and 3D beam (beam3d) |
 
 ---
 

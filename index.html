@@ -711,37 +711,48 @@
         </span>
       </h3>
 
-      <!-- 템플릿 선택 + 옵션 행 -->
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-        <label style="font-size:12px;color:var(--text-dim)">템플릿:</label>
-        <select id="ee-template" class="tb-combo" style="flex:1;min-width:180px">
-          <option value="">── 템플릿 선택 ──</option>
-          <optgroup label="2D 고체 (평면응력/변형률)">
-            <option value="quad4">QUAD4 — 4절점 사각형 (쌍선형)</option>
-            <option value="quad4_sri">QUAD4-SRI — 4절점 (전단잠김 방지)</option>
-            <option value="quad5">QUAD5 — 5절점 사각형 (버블 함수)</option>
-            <option value="quad8">QUAD8 — 8절점 세렌디피티</option>
-            <option value="quad9">QUAD9 — 9절점 라그랑지</option>
-            <option value="trig3">TRIG3 — 3절점 삼각형 (선형)</option>
-            <option value="trig6">TRIG6 — 6절점 삼각형</option>
-          </optgroup>
-          <optgroup label="1D 봉 요소">
-            <option value="bar2_3n">BAR2_3N — 3절점 2D 봉</option>
-          </optgroup>
-          <optgroup label="2D 티모셴코 보">
-            <option value="timbeam2n">TIMBEAM2D_2N — 2절점 티모셴코</option>
-            <option value="timbeam3n">TIMBEAM2D_3N — 3절점 티모셴코</option>
-          </optgroup>
-          <optgroup label="빈 템플릿">
-            <option value="blank_solid">빈 템플릿 — solid2d</option>
-            <option value="blank_bar">빈 템플릿 — bar1d</option>
-            <option value="blank_beam">빈 템플릿 — beam2d_tim</option>
-          </optgroup>
-        </select>
-        <button id="ee-load-tpl" class="panel-btn" style="white-space:nowrap">불러오기</button>
-        <div class="tb-sep" style="height:22px"></div>
-        <button id="ee-register" class="panel-btn accent" style="white-space:nowrap">▶ 등록 (Register)</button>
-        <button id="ee-clear-code" class="panel-btn" style="white-space:nowrap">초기화</button>
+      <!-- 사용자 요소 패널 (2행 레이아웃) -->
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+
+        <!-- 1행: 차원 · DOF/절점 · 절점 수 · 분류 힌트 -->
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap">
+          <span style="font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap">사용자 요소</span>
+
+          <span style="font-size:12px;color:var(--text-dim);white-space:nowrap">차원:</span>
+          <select id="ee-user-dim" class="tb-combo" style="width:60px">
+            <option value="2">2D</option>
+            <option value="3">3D</option>
+          </select>
+
+          <span style="font-size:12px;color:var(--text-dim);white-space:nowrap">DOF/절점:</span>
+          <select id="ee-user-dof" class="tb-combo" style="width:52px"></select>
+
+          <span style="font-size:12px;color:var(--text-dim);white-space:nowrap">절점 수:</span>
+          <select id="ee-user-nnodes" class="tb-combo" style="width:52px"></select>
+
+          <!-- 자동 분류 힌트 -->
+          <span id="ee-user-hint"
+                style="font-size:11px;color:var(--accent);white-space:nowrap;
+                       background:rgba(79,140,255,.1);padding:2px 8px;
+                       border-radius:4px;border:1px solid rgba(79,140,255,.25)"></span>
+        </div>
+
+        <!-- 2행: 슬롯 · 불러오기 · 구분선 · 등록 · 초기화 -->
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap">
+          <span style="font-size:12px;color:var(--text-dim);white-space:nowrap">슬롯:</span>
+          <select id="ee-user-slot" class="tb-combo" style="min-width:132px">
+            <option value="UserElement1">UserElement1</option>
+            <option value="UserElement2">UserElement2</option>
+            <option value="UserElement3">UserElement3</option>
+            <option value="UserElement4">UserElement4</option>
+            <option value="UserElement5">UserElement5</option>
+          </select>
+          <button id="ee-user-load" class="panel-btn" style="white-space:nowrap">에디터 불러오기 →</button>
+          <div class="tb-sep" style="height:22px"></div>
+          <button id="ee-register" class="panel-btn accent" style="white-space:nowrap">▶ 등록 (Register)</button>
+          <button id="ee-clear-code" class="panel-btn" style="white-space:nowrap">초기화</button>
+        </div>
+
       </div>
 
       <!-- 코드 에디터 영역 -->
