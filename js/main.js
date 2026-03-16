@@ -549,19 +549,18 @@
             setStatus(`✓ Created ${createdElemIds.length} ${meshType} elements along polygon boundary`);
 
         } else {
-            // ── 2D solid type: generate filled mesh ──
+            // ── 2D solid type: generate filled mesh via TQMesh WASM ──
             let meshSuccess = false;
             try {
-                // TQMesh WASM only — no JS fallback
                 let result;
                 const _t0 = performance.now();
+
                 if (typeof FepsTQMesh === 'undefined' || !FepsTQMesh.isAvailable()) {
                     throw new Error('TQMesh WASM 모듈이 로딩되지 않았습니다. 페이지를 새로고침해 주세요.');
                 }
                 result = await FepsTQMesh.generateMesh(closedPolygon, meshType, targetLen, smoothIter, holePolygons);
-                console.log('[Mesh] TQMesh generated', result.nodes.length, 'nodes,',
-                    result.elements.length, 'elements in',
-                    (performance.now() - _t0).toFixed(0), 'ms');
+                console.log('[Mesh] TQMesh (WASM) generated', result.nodes.length, 'nodes,',
+                    result.elements.length, 'elements in', (performance.now() - _t0).toFixed(0), 'ms');
 
                 // Track what this mesh operation creates for atomic undo
                 const createdNodeIds = [];

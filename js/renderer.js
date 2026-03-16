@@ -545,7 +545,14 @@ const FepsRenderer = (() => {
         }
 
         if (gs > 0 && hasTransform) {
-            const screenSpacing = gs * _transform.scale;
+            let screenSpacing = gs * _transform.scale;
+
+            // If explicit snap-grid is too fine at current zoom, fall back to auto-spacing
+            // (so the grid never disappears entirely just because the snap pitch is small)
+            if (snapGs > 0 && screenSpacing < 4) {
+                gs = _niceGridSpacing(60 / _transform.scale);
+                screenSpacing = gs * _transform.scale;
+            }
 
             // Skip if too fine or too coarse (safety guard)
             if (screenSpacing < 4 || screenSpacing > Math.max(W, H) * 4) {
@@ -625,9 +632,11 @@ const FepsRenderer = (() => {
             ctx.fillText('0', oxPt.x - 5, oxPt.y + 13);
 
             // Boundary rectangle — only when using the explicit snap-grid spacing
+            // Always use snapGs (not the fallback gs) for the domain bounds
             if (snapGs > 0) {
-                const domXMin = -gridCount * gs, domXMax = gridCount * gs;
-                const domYMin = -gridCount * gs, domYMax = gridCount * gs;
+                const bGs = snapGs;
+                const domXMin = -gridCount * bGs, domXMax = gridCount * bGs;
+                const domYMin = -gridCount * bGs, domYMax = gridCount * bGs;
                 const bTL = toScreen(domXMin, domYMax);
                 const bBR = toScreen(domXMax, domYMin);
                 const bx = Math.max(0, bTL.x), by = Math.max(0, bTL.y);

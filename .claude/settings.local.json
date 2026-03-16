@@ -39,7 +39,23 @@
       "Bash(pandoc FEPS-UserManual.md --from markdown+tex_math_dollars --to html5 --mathjax --syntax-highlighting=none -o FEPS-UserManual.html)",
       "WebSearch",
       "Bash(gh --version)",
-      "Bash(pandoc FEPS-UserManual-Korean.md --from markdown+tex_math_dollars --to html5 --mathjax --syntax-highlighting=none -o FEPS-UserManual-Korean.html)"
+      "Bash(pandoc FEPS-UserManual-Korean.md --from markdown+tex_math_dollars --to html5 --mathjax --syntax-highlighting=none -o FEPS-UserManual-Korean.html)",
+      "Bash(du -h /Users/stlab/Dropbox/App-develop/FEPS-web/js/tqmesh*.js /Users/stlab/Dropbox/App-develop/FEPS-web/js/mesher*.js)",
+      "WebFetch(domain:gmsh.info)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:gitlab.onelab.info)",
+      "WebFetch(domain:onelab.info)",
+      "WebFetch(domain:feascript.com)",
+      "WebFetch(domain:bbanerjee.github.io)",
+      "WebFetch(domain:jsdokken.com)",
+      "WebFetch(domain:bthierry.pages.math.cnrs.fr)",
+      "WebFetch(domain:app.unpkg.com)",
+      "WebFetch(domain:fossies.org)",
+      "WebFetch(domain:deltares.github.io)",
+      "WebFetch(domain:trixi-framework.github.io)",
+      "WebFetch(domain:lfortran.org)",
+      "WebFetch(domain:forum.babylonjs.com)",
+      "WebFetch(domain:gws.phd)"
     ]
   }
 }
